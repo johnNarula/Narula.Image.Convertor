@@ -11,6 +11,8 @@ internal static class Application
 {
     public static async Task<int> RunAsync(string[] args, CancellationToken cancellationToken = default)
     {
+        Defaults.Initialise(Console.Error);
+
         ParseOutcome parsed = CliOptions.Parse(args);
 
         if (parsed.HelpRequested)

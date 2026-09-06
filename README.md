@@ -31,7 +31,7 @@ nImgConvertor -s .\photos -r -d .\converted -t jpg
 | `-r` | Recurse into subfolders; the destination mirrors the tree |
 | `-d <path>` | Destination folder. Defaults to a `Converted to <type>` folder inside the source folder |
 | `-t <type>` | Target — `jpg` `png` `webp` `avif` `tiff` `bmp` `gif` `ico` `jxl` `pdf` and ~190 more (`-formats`) |
-| `-q <1-100>` | Encoder quality, default 85 (formats that record one) |
+| `-q <1-100>` | Encoder quality, default 100 (formats that record one) |
 | `-iconsize <n>` | Which size to take from a multi-size `.ico`, and which to write: 16, 32, 48, 64, 128, 256 |
 | `-o <bool>` | Overwrite existing destination files, default `true` |
 | `-trans <bool>` | Preserve transparency, default `true` |
@@ -129,6 +129,35 @@ nImgConvertor -s .\photos -r -d .\converted -t jpg -o false
   larger than 256x256, so a photo is scaled to fit that box with its aspect ratio intact,
   and the report says how many were resized. Nothing else is ever resized.
 - **A blocked destination is explained, not just reported.** See below.
+
+## Changing the defaults
+
+Every default lives in `ToolDefaults` and can be overridden without rebuilding, by putting a
+`settings.json` beside the executable. Mention only what you want to change:
+
+```json
+{
+  "quality": 90,
+  "background": "black",
+  "destinationFolderFormat": "{0} versions"
+}
+```
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `quality` | 100 | Encoder quality, 1-100 |
+| `overwrite` | true | Replace existing destination files |
+| `preserveTransparency` | true | Keep alpha where the target supports it |
+| `preserveMetadata` | true | Keep EXIF/ICC/IPTC/XMP |
+| `background` | `#FFFFFF` | Matte when flattening, and icon padding when not transparent |
+| `parallelism` | 0 | Workers; 0 means one per processor |
+| `destinationFolderFormat` | `Converted to {0}` | Folder made when `-d` is omitted; `{0}` is the target type |
+| `iconSizes` | 16, 32, 48, 64, 128, 256 | Sizes written into an `.ico`, and what `-iconsize` accepts |
+
+Command-line flags always win over the file. An unusable value is reported and ignored rather
+than stopping the run, and `-h` reports whatever defaults are actually in force.
+
+Comments and trailing commas are allowed, so the file can be hand-edited.
 
 ## Icons
 

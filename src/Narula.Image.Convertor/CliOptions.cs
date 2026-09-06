@@ -34,7 +34,7 @@ internal sealed record CliOptions
     public bool Recursive { get; init; }
 
     /// <summary>Null when -q was not given, so formats keep whatever quality they were written at.</summary>
-    public int? Quality { get; init; } = 85;
+    public int? Quality { get; init; } = Defaults.Current.Quality;
 
     /// <summary>
     /// Which image to take out of a multi-size icon. Null means the largest, which is almost
@@ -42,15 +42,15 @@ internal sealed record CliOptions
     /// </summary>
     public int? IconSize { get; init; }
 
-    public bool Overwrite { get; init; } = true;
-    public bool PreserveTransparency { get; init; } = true;
-    public MagickColor Background { get; init; } = new(MagickColors.White);
-    public bool PreserveMetadata { get; init; } = true;
-    public int Parallelism { get; init; } = Environment.ProcessorCount;
+    public bool Overwrite { get; init; } = Defaults.Current.Overwrite;
+    public bool PreserveTransparency { get; init; } = Defaults.Current.PreserveTransparency;
+    public MagickColor Background { get; init; } = Defaults.Current.ResolvedBackground;
+    public bool PreserveMetadata { get; init; } = Defaults.Current.PreserveMetadata;
+    public int Parallelism { get; init; } = Defaults.Current.ResolvedParallelism;
     public bool StopOnError { get; init; }
 
-    /// <summary>The sizes an .ico conventionally holds, and the only values -iconsize accepts.</summary>
-    public static readonly int[] IconSizes = [16, 32, 48, 64, 128, 256];
+    /// <summary>The sizes an .ico holds, and the only values -iconsize accepts.</summary>
+    public static int[] IconSizes => Defaults.Current.IconSizes;
 
     public static ParseOutcome Parse(string[] args)
     {
@@ -61,10 +61,14 @@ internal sealed record CliOptions
 
         string? source = null, destination = null, target = null;
         bool recursive = false, stopOnError = false;
-        int? quality = 85;
-        int parallelism = Environment.ProcessorCount;
-        bool overwrite = true, preserveTransparency = true, preserveMetadata = true;
-        MagickColor background = new(MagickColors.White);
+        ToolDefaults defaults = Defaults.Current;
+
+        int? quality = defaults.Quality;
+        int parallelism = defaults.ResolvedParallelism;
+        bool overwrite = defaults.Overwrite;
+        bool preserveTransparency = defaults.PreserveTransparency;
+        bool preserveMetadata = defaults.PreserveMetadata;
+        MagickColor background = defaults.ResolvedBackground;
         MagickFormat targetFormat = MagickFormat.Unknown;
         int? iconSize = null;
 
@@ -182,7 +186,7 @@ internal sealed record CliOptions
         // Without -d, output lands in a clearly named folder beside the originals. That folder
         // sits inside the source root, and FileScanner already refuses to read its own output.
         string resolvedDestination = destination is null
-            ? Path.Combine(root, $"Converted to {target}")
+            ? Path.Combine(root, string.Format(defaults.DestinationFolderFormat, target))
             : Path.GetFullPath(destination);
 
         return ParseOutcome.Parsed(new CliOptions
@@ -277,7 +281,7 @@ internal sealed record CliOptions
         }
     }
 
-    public const string HelpText = """
+    public static string HelpText => $"""
         nImgConvertor 2 — batch image format conversion
 
         Usage:
@@ -293,17 +297,19 @@ internal sealed record CliOptions
           -t <type>      Target type. Common ones:
                            jpg png webp avif tiff bmp gif ico jxl pdf
                          Nearly 200 are writable — run -formats for the full list
-          -q <1-100>     Encoder quality (default 85; formats that record one)
+          -q <1-100>     Encoder quality (default {Defaults.Current.Quality}; formats that record one)
           -iconsize <n>  Which image to take from a multi-size .ico:
-                           16 32 48 64 128 256. Default is the largest present
-          -o <bool>      Overwrite existing destination files (default true)
-          -trans <bool>  Preserve transparency (default true)
-          -bg <colour>   Matte used when flattening, #RRGGBB or a name (default #FFFFFF)
-          -m <bool>      Preserve EXIF/ICC metadata (default true)
+                           {string.Join(" ", Defaults.Current.IconSizes)}. Default is the largest present
+          -o <bool>      Overwrite existing destination files (default {Defaults.Current.Overwrite.ToString().ToLowerInvariant()})
+          -trans <bool>  Preserve transparency (default {Defaults.Current.PreserveTransparency.ToString().ToLowerInvariant()})
+          -bg <colour>   Matte used when flattening, #RRGGBB or a name (default {Defaults.Current.Background})
+          -m <bool>      Preserve EXIF/ICC metadata (default {Defaults.Current.PreserveMetadata.ToString().ToLowerInvariant()})
           -p <n>         Parallel workers (default = CPU count)
           -e             Stop on first failure
           -formats       List every format that can be read and written
           -h             Show this help
+
+        Defaults come from settings.json beside the executable, if present.
 
         Reads HEIC, AVIF, camera RAW, PSD, SVG and around 260 others.
 

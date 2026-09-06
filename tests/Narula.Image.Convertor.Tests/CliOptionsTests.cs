@@ -34,7 +34,7 @@ public class CliOptionsTests
         CliOptions options = Parse("-s", "in", "-d", "out", "-t", "jpg");
 
         Assert.False(options.Recursive);
-        Assert.Equal(85, options.Quality);
+        Assert.Equal(100, options.Quality);
         Assert.True(options.Overwrite);
         Assert.True(options.PreserveTransparency);
         Assert.True(options.PreserveMetadata);

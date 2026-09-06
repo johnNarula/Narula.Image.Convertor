@@ -26,7 +26,7 @@ nImgConvertor -s <source> -t <type> [options]
   -r             Recurse into subfolders; destination mirrors the tree
   -d <path>      Destination folder; defaults to "Converted to <type>" inside the source folder
   -t <type>      Target type: jpg jpeg png webp bmp gif tiff tif tga
-  -q <1-100>     Encoder quality (default 85; applies to JPEG and WebP only)
+  -q <1-100>     Encoder quality (default 100; formats that record one)
   -o <bool>      Overwrite existing destination files (default true)
   -trans <bool>  Preserve transparency (default true)
   -bg <#RRGGBB>  Matte colour used when flattening (default #FFFFFF)
@@ -413,6 +413,30 @@ takes the matte colour instead, since transparent padding would contradict the r
 
 `-iconsize` is deliberately restricted to the six conventional sizes. Arbitrary values
 would make it a general resize flag, which remains a non-goal.
+
+## Defaults live in one place
+
+Changing a default used to mean finding it in the parser and rebuilding. They now sit in
+`ToolDefaults`, and `Defaults.Load` will take them from a `settings.json` beside the
+executable, so a preference change needs neither a code edit nor a build.
+
+Precedence is file, then flags: the file moves the starting point, a flag always wins.
+`-h` renders from the values actually in force rather than a fixed string, so help cannot
+disagree with behaviour.
+
+An unusable value is reported on stderr and that one field falls back to its built-in --
+a typo in a preferences file is no reason to refuse to convert images. Same for a file that
+will not parse at all. Comments and trailing commas are accepted because the file is meant
+to be hand-edited.
+
+### Quality 100 and AVIF
+
+The default quality is 100, which AVIF cannot accept: at exactly 100 it asks AOM for
+lossless, and this build refuses that unless chroma delta-q is also disabled, failing with
+"Only --enable_chroma_deltaq=0 can be used with --lossless=1". 99 encodes fine and is
+visually indistinguishable, so AVIF's quality is capped there rather than the conversion
+being lost. Found by the test that converts into every common target, which started failing
+the moment the default moved.
 
 ## Packaging
 

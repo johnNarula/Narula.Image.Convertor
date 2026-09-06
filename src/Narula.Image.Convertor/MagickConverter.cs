@@ -152,6 +152,15 @@ internal sealed class MagickConverter : IImageConverter
     }
 
     /// <summary>
+    /// AVIF treats quality 100 as a request for lossless, and this build's AOM encoder refuses
+    /// that unless chroma delta-q is also disabled — so a plain 100 fails outright with
+    /// "Only --enable_chroma_deltaq=0 can be used with --lossless=1". 99 encodes fine and is
+    /// visually indistinguishable, so the ceiling is lowered rather than the file lost.
+    /// </summary>
+    private int ClampQuality(int quality) =>
+        ImageFormats.Canonical(_target) is MagickFormat.Avif && quality >= 100 ? 99 : quality;
+
+    /// <summary>
     /// Builds a proper icon: the same picture at every conventional size the source can supply,
     /// which is what an .ico is for. Sizes larger than the source are skipped rather than
     /// upscaled, and -iconsize narrows it to a single size.
@@ -297,7 +306,7 @@ internal sealed class MagickConverter : IImageConverter
 
         if (options.Quality is { } quality)
         {
-            image.Quality = (uint)quality;
+            image.Quality = (uint)ClampQuality(quality);
         }
 
         return resized;
