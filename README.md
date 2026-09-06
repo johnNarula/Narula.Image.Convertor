@@ -25,7 +25,7 @@ img2img -s .\photos -r -d .\converted -t jpg
 
 ## Installing
 
-`publish/installer/img2img-setup-<version>.exe` installs both programs, adds them to your
+`publish/installer/img2img-setup-<version>.exe` installs all three programs, adds them to your
 PATH, and puts "Convert images here..." on the folder right-click menu. It installs for you
 alone by default, so it needs no administrator, and offers an all-users install to anyone who
 wants one. It checks for the .NET 10 runtime and fetches it from Microsoft only if missing.
@@ -70,6 +70,42 @@ filter, defaulting to all supported image types, which narrows a folder scan to 
 The window and the command line are the same program. The window builds an argument list and
 hands it to the same parser, so every default, rule and quirk applies identically to both,
 and neither can grow behaviour the other lacks.
+
+## For AI agents
+
+`img2imgMcp.exe` is an MCP server, installed alongside the other two. It gives an agent the
+same engine the window and the command line use:
+
+| Tool | What it does |
+|---|---|
+| `convert_images` | Convert a folder, a file or a pattern to another format |
+| `list_formats` | Every format this build can write, and optionally the read-only ones |
+| `describe_format` | What one format supports: transparency, frames, size limits |
+| `inspect_image` | The real format, size, transparency and frame count of a file |
+
+Claude Code takes one line:
+
+```bash
+claude mcp add img2img -- "%LOCALAPPDATA%\Programs\img2img\img2imgMcp.exe"
+```
+
+Any other client wants the JSON, which the server will print for you with the correct path
+already filled in:
+
+```bash
+img2imgMcp --print-config
+```
+
+Merge that into the client's MCP configuration; it is one entry under `mcpServers`. **About**
+in the window shows the same command and copies the JSON to the clipboard, so none of this has
+to be remembered.
+
+Failures come back described rather than thrown: a bad target names the target, a missing
+source names the path, and a run that partly failed lists each file with its reason. The
+server only ever writes into the destination folder it reports.
+
+Running `img2imgMcp` by hand does nothing visible — it talks over stdin and stdout, and is
+meant to be launched by the agent. `img2imgMcp -h` prints the setup instructions instead.
 
 ## Options
 
@@ -320,10 +356,10 @@ four times the size.
 Swap the platform for elsewhere: `-r linux-x64`, `-r linux-musl-x64` for Alpine, `-r osx-arm64`
 or `-r osx-x64`. A binary built on Windows arrives without the execute bit, so `chmod +x` it.
 
-The solution is four projects: `Narula.Image.Convertor` is the engine library, `.Cli`
-produces `img2img.exe`, `.UI` produces `img2imgUI.exe`, and `.Setup` builds the installer.
-Both executables call the same engine in-process, so there is one implementation of the
-conversion rules.
+The solution is five projects: `Narula.Image.Convertor` is the engine library, `.Cli`
+produces `img2img.exe`, `.UI` produces `img2imgUI.exe`, `.Mcp` produces `img2imgMcp.exe`, and
+`.Setup` builds the installer. All three executables call the same engine in-process, so there
+is one implementation of the conversion rules and no front end can drift from another.
 
 The installer is built on purpose and is not part of a normal build, so this repository still
 builds and tests on a machine without Inno Setup:

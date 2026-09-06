@@ -3,7 +3,7 @@
         xmlns:vm="using:Narula.Image.Convertor.UI"
         x:Class="Narula.Image.Convertor.UI.AboutWindow"
         Title="About Image to Image Convertor"
-        Width="520" Height="470"
+        Width="560" Height="720"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
         RequestedThemeVariant="Light"
@@ -46,6 +46,30 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
+
+        <!--
+          The agent section. Two ways in, because Claude Code takes one command and everything
+          else wants the JSON, and neither audience should have to read the other's route.
+        -->
+        <Border x:Name="McpCard" Background="#F6F0FF" BorderBrush="#E2D5FB" BorderThickness="1"
+                CornerRadius="8" Padding="12" Margin="0,4,0,8">
+          <StackPanel Spacing="5">
+            <TextBlock x:Name="McpHeading" FontSize="11" FontWeight="SemiBold" Foreground="#6B6B86" />
+            <TextBlock x:Name="McpSummary" FontSize="11.5" Foreground="#4A4A66" TextWrapping="Wrap" />
+
+            <TextBlock Text="Claude Code, in one command:" FontSize="11" Foreground="#77778F" Margin="0,4,0,0" />
+            <SelectableTextBlock x:Name="McpCommand" FontFamily="Consolas, Menlo, monospace"
+                                 FontSize="11" Foreground="#33334D" TextWrapping="Wrap" />
+
+            <TextBlock x:Name="McpOther" FontSize="11" Foreground="#77778F"
+                       TextWrapping="Wrap" Margin="0,4,0,0" />
+
+            <TextBlock x:Name="McpTools" FontSize="11" Foreground="#8B8BA3" TextWrapping="Wrap" />
+
+            <Button x:Name="McpCopyButton" Content="Copy config" Padding="10,4" FontSize="11.5"
+                    HorizontalAlignment="Left" Margin="0,4,0,0" />
+          </StackPanel>
+        </Border>
 
         <!-- Laid out by hand rather than as another row, because the value is a link. -->
         <StackPanel Orientation="Horizontal" Margin="0,-4,0,4">

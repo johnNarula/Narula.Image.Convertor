@@ -20,7 +20,7 @@ it. A machine without Inno Setup builds and tests the rest of the repository nor
 
 | | |
 |---|---|
-| Files | `img2img.exe`, `img2imgUI.exe`, and `settings.json` if there isn't one already |
+| Files | `img2img.exe`, `img2imgUI.exe`, `img2imgMcp.exe`, and `settings.json` if there isn't one already |
 | Where | Per-user by default, with no administrator prompt; the wizard offers all-users |
 | PATH | The install folder is added to **your** PATH, even for an all-users install, because that is the one a terminal inherits |
 | Start menu | Always |
@@ -37,6 +37,11 @@ your own `%AppData%\9thAct\img2img\settings.json` alone.
 installing it has to choose *More info* then *Run anyway*. Signing needs a paid certificate;
 there is no free Authenticode option that SmartScreen trusts, and a self-signed certificate
 does not help.
+
+**The MCP server is installed but not registered.** Writing into an agent's configuration file
+on someone's behalf is too invasive and too easy to corrupt, so setup only places the
+executable. About in the window shows the one-line command and copies the JSON, and
+`img2imgMcp --print-config` prints it with the installed path already filled in.
 
 **The Explorer entry calls `img2imgUI.exe` directly**, not `img2img.exe -ui`, because
 `img2img.exe` is a console program and going through it would flash a console window.

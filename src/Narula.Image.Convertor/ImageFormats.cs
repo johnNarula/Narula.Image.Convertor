@@ -106,6 +106,29 @@ internal static class ImageFormats
             .OrderBy(f => f.Name, StringComparer.Ordinal),
     ];
 
+    /// <summary>
+    /// The formats anyone actually asks for, in the order they are worth offering. Alphabetical
+    /// order puts "a" — raw alpha samples — at the top of a list of nearly two hundred, which is
+    /// a poor first suggestion for a person and a worse one for an agent.
+    /// </summary>
+    public static IReadOnlyList<string> CommonTargets { get; } =
+        ["jpg", "png", "webp", "avif", "tiff", "bmp", "gif", "ico", "jxl", "pdf"];
+
+    /// <summary>
+    /// Every writable format with the common ones first. Shared so the window, the command line
+    /// and the MCP server all present the same list in the same order.
+    /// </summary>
+    public static IReadOnlyList<(string Name, string Description)> WritableFormatsCommonFirst()
+    {
+        List<(string Name, string Description)> all = [.. WritableFormats()];
+
+        return
+        [
+            .. CommonTargets.Select(c => all.FirstOrDefault(f => f.Name == c)).Where(f => f.Name is not null),
+            .. all.Where(f => !CommonTargets.Contains(f.Name)),
+        ];
+    }
+
     /// <summary>ImageMagick's description of a format, or null when it does not know the name.</summary>
     public static string? Describe(string type)
     {

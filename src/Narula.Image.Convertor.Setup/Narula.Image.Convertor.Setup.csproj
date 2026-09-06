@@ -61,12 +61,16 @@
              Targets="Publish"
              Properties="Configuration=$(InstallerConfiguration);RuntimeIdentifier=$(InstallerRuntime);PublishDir=$(StageDir)" />
 
+    <MSBuild Projects="..\Narula.Image.Convertor.Mcp\Narula.Image.Convertor.Mcp.csproj"
+             Targets="Publish"
+             Properties="Configuration=$(InstallerConfiguration);RuntimeIdentifier=$(InstallerRuntime);PublishDir=$(StageDir)" />
+
     <ItemGroup>
       <Staged Include="$(StageDir)*.exe" />
     </ItemGroup>
 
-    <Error Condition="'@(Staged->Count())' != '2'"
-           Text="Expected img2img.exe and img2imgUI.exe in $(StageDir), found @(Staged->Count())." />
+    <Error Condition="'@(Staged->Count())' != '3'"
+           Text="Expected img2img.exe, img2imgUI.exe and img2imgMcp.exe in $(StageDir), found @(Staged->Count())." />
   </Target>
 
   <Target Name="Installer" DependsOnTargets="StageBinaries">

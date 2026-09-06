@@ -496,9 +496,9 @@ Linux" and "runs on Linux", and only launching it on a real one surfaces it.
 
 ### Structure
 
-Four projects. Three of them exist because an executable cannot reference another executable:
+Five projects. Three of them exist because an executable cannot reference another executable:
 `Narula.Image.Convertor` is the engine library, `.Cli` is `img2img.exe`, `.UI` is
-`img2imgUI.exe`. `.Setup` is the fourth and contains no code at all. Running `img2img` with no arguments launches the window found beside it, and
+`img2imgUI.exe`, `.Mcp` is `img2imgMcp.exe`. `.Setup` is the fifth and contains no code at all. Running `img2img` with no arguments launches the window found beside it, and
 falls back to printing help when it is not there. That decision lives in the executable rather
 than the library, so nothing can spawn a process merely by calling the engine.
 
@@ -631,3 +631,40 @@ draws the glyph at its top edge, in a button that is itself correctly full heigh
 
 Neither produced a build warning. Both were found by launching the window, clicking, and
 photographing the result — which is now the standing rule for this project's UI work.
+
+
+## The MCP server
+
+A third front end, for agents, on the same engine as the other two. It exists because the
+alternative — an agent shelling out to `img2img` and parsing a report drawn with box characters
+for a human — is worse for both sides.
+
+Four tools: `convert_images`, `list_formats`, `describe_format`, `inspect_image`. The first
+builds an argument list and hands it to `ConversionRun`, exactly as the window does, so an
+agent cannot obtain behaviour a person could not.
+
+Three decisions worth recording.
+
+**Its result types are not the engine's.** `ConversionReport` and the rest are a protocol
+surface: they say plain things in plain words, and they can stay stable while the engine's
+internals move. The engine's `ConversionResult` carries a `WorkItem` and an `Outcome` enum,
+which are the wrong vocabulary for something being read by a model.
+
+**Nothing throws.** A bad target, a missing source and a partly failed run all come back as a
+report with `ran: false` and a message, or with per-file reasons. An exception across a
+protocol boundary is a dead end for an agent; a described failure is something it can act on.
+
+**Standard output belongs to the protocol.** Both the settings warnings and the logger are
+pointed at standard error. Anything else printed to standard output corrupts the conversation,
+and it fails in a way that looks like the server is broken rather than noisy.
+
+Registration is deliberately not automated. Editing someone's agent configuration file is
+invasive and easy to corrupt, so the installer only places the executable; `--print-config`
+prints the JSON with the real path, About shows the same and copies it, and Claude Code takes
+the one-line `claude mcp add` form. `McpConfig` lives in the engine rather than in the server
+because two programs need it — the server printing its own configuration, and the window
+showing it — and both must quote the same path and the same wording.
+
+The common-format ordering moved into the engine at the same time. The window had its own
+list of everyday targets; the MCP server needed the same thing, and alphabetical order puts
+"a" — raw alpha samples — first out of 197. One list, three front ends.

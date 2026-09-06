@@ -19,6 +19,7 @@
 #define AppPublisher "9th Act, LLC"
 #define AppUrl "https://www.linkedin.com/in/johnNarula"
 #define WindowExe "img2imgUI.exe"
+#define McpExe "img2imgMcp.exe"
 #define ConsoleExe "img2img.exe"
 
 [Setup]
@@ -63,6 +64,9 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
 [Files]
 Source: "{#StageDir}\{#ConsoleExe}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#StageDir}\{#WindowExe}"; DestDir: "{app}"; Flags: ignoreversion
+; The MCP server, so an AI agent can drive the same engine. Nothing launches it but an agent;
+; About in the window shows the one line needed to register it.
+Source: "{#StageDir}\{#McpExe}"; DestDir: "{app}"; Flags: ignoreversion
 ; A starting point only. Your own copy in %AppData%\9thAct\img2img wins over this one, and
 ; onlyifdoesntexist means reinstalling never overwrites an edited file.
 Source: "settings.default.json"; DestDir: "{app}"; DestName: "settings.json"; Flags: onlyifdoesntexist

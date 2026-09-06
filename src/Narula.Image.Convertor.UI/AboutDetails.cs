@@ -51,6 +51,30 @@ internal static class AboutDetails
         return rows;
     }
 
+    /// <summary>
+    /// The agent section. It exists because nobody discovers an MCP server by accident: the
+    /// window is where someone looks, so this is where it says what was installed and how to
+    /// point an agent at it.
+    /// </summary>
+    public static bool McpAvailable => McpConfig.IsInstalled;
+
+    public static string McpHeading => "FOR AI AGENTS";
+
+    public static string McpSummary => McpAvailable
+        ? "An MCP server is installed beside this program. Point an AI agent at it and it can " +
+          "convert images, list formats and inspect files through this same engine."
+        : "The MCP server for AI agents was not installed beside this program. Reinstall to add it.";
+
+    public static string McpClaudeCode => McpConfig.ClaudeCodeCommand();
+
+    public static string McpOtherClients =>
+        "Any other client: Copy config below, then merge it into that client's MCP settings file.";
+
+    public static string McpTools =>
+        string.Join("   ", McpConfig.Tools.Select(t => t.Tool));
+
+    public static string McpSnippet() => McpConfig.Snippet();
+
     public static string Author => "John Narula";
 
     public static string AuthorLink => "https://www.linkedin.com/in/johnNarula";

@@ -19,6 +19,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Narula.Image.Convertor\Narula.Image.Convertor.csproj" />
     <ProjectReference Include="..\..\src\Narula.Image.Convertor.UI\Narula.Image.Convertor.UI.csproj" />
+    <ProjectReference Include="..\..\src\Narula.Image.Convertor.Mcp\Narula.Image.Convertor.Mcp.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -43,15 +43,9 @@ internal sealed class MainViewModel : INotifyPropertyChanged
         _run = run;
 
         // Everything that can actually be written, with the everyday ones first so the list is
-        // useful before a single character is typed.
-        string[] common = ["jpg", "png", "webp", "avif", "tiff", "bmp", "gif", "ico", "jxl", "pdf"];
-        List<(string Name, string Description)> writable = [.. ImageFormats.WritableFormats()];
-
-        Targets =
-        [
-            .. common.Where(c => writable.Any(w => w.Name == c)),
-            .. writable.Select(w => w.Name).Where(n => !common.Contains(n)),
-        ];
+        // useful before a single character is typed. That order lives in the engine, so the
+        // window, the command line and the MCP server cannot each invent their own.
+        Targets = [.. ImageFormats.WritableFormatsCommonFirst().Select(f => f.Name)];
 
         SourceFilters = [AllTypes, .. FileScanner.KnownImageExtensions];
         IconSizes = [.. CliOptions.IconSizes];

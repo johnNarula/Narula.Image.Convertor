@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>img2imgMcp</AssemblyName>
+    <RootNamespace>Narula.Image.Convertor.Mcp</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <ApplicationIcon>..\Narula.Image.Convertor\icon.ico</ApplicationIcon>
+    <!-- Magick.NET carries native libraries: trimming is unsafe and they must be bundled. -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Description>Model Context Protocol server for image format conversion.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Narula.Image.Convertor\Narula.Image.Convertor.csproj" />
+  </ItemGroup>
+
+  <!--
+    A referenced project still contributes its .pdb to the publish set. Drop them so a publish
+    is executables only, exactly as the other two do.
+  -->
+  <Target Name="DropSymbols" AfterTargets="ComputeFilesToPublish">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
+
+</Project>
