@@ -27,9 +27,9 @@ nImgConvertor -s .\photos -r -d .\converted -t jpg
 
 | Flag | Meaning |
 |---|---|
-| `-s <path>` | Source folder (required) |
+| `-s <path>` | Source (required) — a folder, a glob, or a single file. See below |
 | `-r` | Recurse into subfolders; the destination mirrors the tree |
-| `-d <path>` | Destination folder (required, even when it is the source folder) |
+| `-d <path>` | Destination folder. Defaults to a `Converted to <type>` folder inside the source folder |
 | `-t <type>` | Target: `jpg` `jpeg` `png` `webp` `bmp` `gif` `tiff` `tif` `tga` |
 | `-q <1-100>` | Encoder quality, default 85 (JPEG and WebP only) |
 | `-o <bool>` | Overwrite existing destination files, default `true` |
@@ -42,15 +42,47 @@ nImgConvertor -s .\photos -r -d .\converted -t jpg
 
 Boolean flags take an explicit value: `-o false`, not a bare `-o`.
 
+**Quote any path containing spaces**, or your shell splits it into separate arguments before
+the tool ever sees it.
+
+### The three forms of `-s`
+
+| You type | You get |
+|---|---|
+| `-s "C:\photos"` | every image in that folder |
+| `-s "C:\photos\*.jpg"` | only the names matching the pattern (`*` and `?`) |
+| `-s "C:\photos\one.jpg"` | just that one file |
+
+A glob combines with `-r` — `-s "C:\photos\*.jpg" -r` matches `*.jpg` throughout the tree.
+An explicitly named single file is converted whatever its extension.
+
 Exit codes: `0` all good, `1` one or more files failed, `2` bad arguments or missing
 source folder.
 
 ## Examples
 
+Convert a folder to JPEG, output beside the originals in `Converted to jpg`:
+
+```bash
+nImgConvertor -s "C:\photos" -t jpg
+```
+
 Convert a photo library to JPEG, keeping the folder structure:
 
 ```bash
-nImgConvertor -s .\photos -r -d .\converted -t jpg
+nImgConvertor -s "C:\photos" -r -d "C:\converted" -t jpg
+```
+
+Only the PNGs, only this folder:
+
+```bash
+nImgConvertor -s "C:\photos\*.png" -t webp
+```
+
+One file:
+
+```bash
+nImgConvertor -s "C:\photos\front-elevation.webp" -t jpg
 ```
 
 Shrink a website's images to WebP at quality 80:

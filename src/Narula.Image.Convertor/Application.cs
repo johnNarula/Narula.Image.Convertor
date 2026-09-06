@@ -28,9 +28,17 @@ internal static class Application
 
         CliOptions options = parsed.Options;
 
-        if (!Directory.Exists(options.SourcePath))
+        if (options.SourceIsSingleFile)
         {
-            Console.Error.WriteLine($"nImgConvertor: source folder not found: {options.SourcePath}");
+            if (!File.Exists(Path.Combine(options.SourceRoot, options.SourcePattern)))
+            {
+                Console.Error.WriteLine($"nImgConvertor: source file not found: {options.SourceInput}");
+                return 2;
+            }
+        }
+        else if (!Directory.Exists(options.SourceRoot))
+        {
+            Console.Error.WriteLine($"nImgConvertor: source folder not found: {options.SourceRoot}");
             return 2;
         }
 
@@ -49,7 +57,9 @@ internal static class Application
 
         if (scan.Total == 0)
         {
-            Console.WriteLine($"No image files found in {options.SourcePath}.");
+            Console.WriteLine(options.SourcePattern == "*"
+                ? $"No image files found in {options.SourceRoot}."
+                : $"No files matching {options.SourcePattern} found in {options.SourceRoot}.");
             return 0;
         }
 

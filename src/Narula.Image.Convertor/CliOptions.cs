@@ -5,7 +5,18 @@ namespace Narula.Image.Convertor;
 /// <summary>Everything the run needs, already validated. Built only by <see cref="Parse"/>.</summary>
 internal sealed record CliOptions
 {
-    public required string SourcePath { get; init; }
+    /// <summary>Exactly what the user typed after -s, kept for error messages.</summary>
+    public required string SourceInput { get; init; }
+
+    /// <summary>The folder to enumerate. For a glob or a single file, the folder containing it.</summary>
+    public required string SourceRoot { get; init; }
+
+    /// <summary>A simple glob (<c>*</c> and <c>?</c>) matched against file names. <c>*</c> means everything.</summary>
+    public required string SourcePattern { get; init; }
+
+    /// <summary>True when -s named one existing file, which is then converted regardless of its extension.</summary>
+    public bool SourceIsSingleFile { get; init; }
+
     public required string DestinationPath { get; init; }
 
     /// <summary>Lower-cased, no leading dot — exactly as it will appear on output files.</summary>
@@ -109,18 +120,32 @@ internal sealed record CliOptions
                     break;
 
                 default:
-                    return ParseOutcome.Invalid($"unknown option '{flag}'");
+                    // A bare word here almost always means a path with spaces reached us
+                    // already split by the shell, which is worth saying out loud.
+                    return ParseOutcome.Invalid(flag.StartsWith('-')
+                        ? $"unknown option '{flag}'"
+                        : $"unexpected argument '{flag}' - if this is part of a path containing spaces, wrap the whole path in double quotes");
             }
         }
 
-        if (source is null) return ParseOutcome.Invalid("-s (source folder) is required");
-        if (destination is null) return ParseOutcome.Invalid("-d (destination folder) is required");
+        if (source is null) return ParseOutcome.Invalid("-s (source) is required");
         if (target is null) return ParseOutcome.Invalid("-t (target type) is required");
+
+        (string root, string pattern, bool singleFile) = ResolveSource(source);
+
+        // Without -d, output lands in a clearly named folder beside the originals. That folder
+        // sits inside the source root, and FileScanner already refuses to read its own output.
+        string resolvedDestination = destination is null
+            ? Path.Combine(root, $"Converted to {target}")
+            : Path.GetFullPath(destination);
 
         return ParseOutcome.Parsed(new CliOptions
         {
-            SourcePath = Path.GetFullPath(source),
-            DestinationPath = Path.GetFullPath(destination),
+            SourceInput = source,
+            SourceRoot = root,
+            SourcePattern = pattern,
+            SourceIsSingleFile = singleFile,
+            DestinationPath = resolvedDestination,
             TargetType = target,
             Recursive = recursive,
             Quality = quality,
@@ -131,6 +156,38 @@ internal sealed record CliOptions
             Parallelism = parallelism,
             StopOnError = stopOnError,
         });
+    }
+
+    /// <summary>
+    /// Works out what -s meant. A folder means every image in it; a path ending in a glob means
+    /// only the names that match; an existing file means that file alone. A path that is none of
+    /// those is treated as a folder, so <see cref="Application"/> can report it as missing.
+    /// </summary>
+    private static (string Root, string Pattern, bool SingleFile) ResolveSource(string source)
+    {
+        string trimmed = source.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        if (trimmed.Length == 0)
+        {
+            trimmed = source;
+        }
+
+        string lastSegment = Path.GetFileName(trimmed);
+
+        if (lastSegment.Contains('*') || lastSegment.Contains('?'))
+        {
+            string directory = Path.GetDirectoryName(trimmed) is { Length: > 0 } parent ? parent : ".";
+            return (Path.GetFullPath(directory), lastSegment, false);
+        }
+
+        string full = Path.GetFullPath(trimmed);
+
+        if (File.Exists(full) && !Directory.Exists(full))
+        {
+            return (Path.GetDirectoryName(full) ?? ".", Path.GetFileName(full), true);
+        }
+
+        return (full, "*", false);
     }
 
     private static bool TryTakeValue(string[] args, ref int i, string flag, out string value, out string? error)
@@ -170,11 +227,15 @@ internal sealed record CliOptions
         nImgConvertor — batch image format conversion
 
         Usage:
-          nImgConvertor -s <folder> -d <folder> -t <type> [options]
+          nImgConvertor -s <source> -t <type> [options]
 
-          -s <path>      Source folder (required)
+          -s <path>      Source (required). One of:
+                           a folder      C:\photos           every image in it
+                           a pattern     C:\photos\*.jpg     only matching names
+                           a single file C:\photos\one.jpg   just that file
           -r             Recurse into subfolders; destination mirrors the tree
-          -d <path>      Destination folder (required, even when same as source)
+          -d <path>      Destination folder. Defaults to a "Converted to <type>"
+                         folder inside the source folder
           -t <type>      Target type: jpg jpeg png webp bmp gif tiff tif tga
           -q <1-100>     Encoder quality (default 85; JPEG and WebP only)
           -o <bool>      Overwrite existing destination files (default true)

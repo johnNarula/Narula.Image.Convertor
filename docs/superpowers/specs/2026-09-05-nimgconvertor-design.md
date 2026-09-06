@@ -19,11 +19,11 @@ mode. If those are wanted later they are separate features, not hidden flags.
 ## CLI surface
 
 ```
-nImgConvertor -s <folder> -d <folder> -t <type> [options]
+nImgConvertor -s <source> -t <type> [options]
 
-  -s <path>      Source folder (required)
+  -s <path>      Source (required): a folder, a glob, or a single file
   -r             Recurse into subfolders; destination mirrors the tree
-  -d <path>      Destination folder (required, even when identical to source)
+  -d <path>      Destination folder; defaults to "Converted to <type>" inside the source folder
   -t <type>      Target type: jpg jpeg png webp bmp gif tiff tif tga
   -q <1-100>     Encoder quality (default 85; applies to JPEG and WebP only)
   -o <bool>      Overwrite existing destination files (default true)
@@ -38,8 +38,21 @@ nImgConvertor -s <folder> -d <folder> -t <type> [options]
 Boolean flags take an explicit `true`/`false` value (`-o false`). This is deliberate and
 consistent across `-o`, `-trans`, and `-m`.
 
-`-d` is always required, even when it points at the source folder. There is no implicit
-"write next to the original" behaviour — destructive defaults are not acceptable here.
+**The three forms of `-s`.** A path that names an existing folder means every image in it.
+A path whose last segment contains `*` or `?` splits into a folder plus a glob, and only
+matching names are taken; the glob combines with `-r` to match throughout the tree. A path
+that names an existing file means that file alone, converted whatever its extension — the
+user pointed at exactly one thing. Anything else is treated as a folder so the run can
+report it as missing.
+
+Globs are matched with `FileSystemName.MatchesSimpleExpression` rather than handed to
+`Directory.EnumerateFiles`, because Win32 pattern semantics have surprises (`*.tif`
+matching `.tiff`) that the documented API does not.
+
+**`-d` is optional.** Omitted, output goes to a folder named `Converted to <type>` inside
+the source folder — beside the originals, obviously named, and (being inside the source)
+already covered by the rule that a run never reads its own output. Nothing is ever written
+next to an original under its own name unless `-d` says so explicitly.
 
 `-t jpg` and `-t jpeg` both select the JPEG encoder, as do `-t tiff` and `-t tif` for
 TIFF; the output file receives exactly the extension the user typed. Running with no
@@ -51,7 +64,7 @@ arguments prints the help text and exits 0.
 |---|---|
 | 0 | Every file converted, copied, or intentionally skipped |
 | 1 | One or more files failed |
-| 2 | Invalid arguments, or the source folder does not exist |
+| 2 | Invalid arguments, or the source folder or file does not exist |
 
 ## Behavioural rules
 
@@ -140,6 +153,9 @@ One project, one NuGet dependency (`SixLabors.ImageSharp` 3.1.12).
 
 `Application` is separate from `Program` so exit-code behaviour can be tested without
 launching a process.
+
+A bare word where a flag was expected reports that the path may need quoting, since a
+shell splitting an unquoted path with spaces is the overwhelmingly common cause.
 
 Argument parsing is hand-rolled. Twelve flags do not justify a dependency, and
 `System.CommandLine` would add startup cost to a tool whose whole point is speed.
@@ -235,12 +251,14 @@ CPU-bound inside the encoder, which is the correct place for the time to go.
 
 ## Testing
 
-An xUnit project alongside the main one, 55 tests. Fixture images are generated
+An xUnit project alongside the main one, 68 tests. Fixture images are generated
 programmatically at test time — no binary assets in the repository.
 
 Coverage:
 
 - Argument parsing: full command line, defaults, aliases, and every rejection path
+- The three `-s` forms, and the default `-d` for each of them
+- Glob selection, glob with `-r`, and a glob matching nothing
 - Extension filtering, recursion, mirrored paths, self-output exclusion, sort order
 - Destination collision resolution
 - Overwrite policy in both states

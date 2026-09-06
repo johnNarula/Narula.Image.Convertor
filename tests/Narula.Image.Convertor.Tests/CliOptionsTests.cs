@@ -49,7 +49,7 @@ public class CliOptionsTests
     {
         CliOptions options = Parse("-s", "in", "-d", "out", "-t", "png");
 
-        Assert.True(Path.IsPathFullyQualified(options.SourcePath));
+        Assert.True(Path.IsPathFullyQualified(options.SourceRoot));
         Assert.True(Path.IsPathFullyQualified(options.DestinationPath));
     }
 
@@ -62,6 +62,67 @@ public class CliOptionsTests
         CliOptions options = Parse("-s", "in", "-d", "out", "-t", target);
 
         Assert.Equal(target.TrimStart('.').ToLowerInvariant(), options.TargetType);
+    }
+
+    [Fact]
+    public void A_folder_source_means_every_image_in_it()
+    {
+        CliOptions options = Parse("-s", "in", "-d", "out", "-t", "jpg");
+
+        Assert.Equal("*", options.SourcePattern);
+        Assert.False(options.SourceIsSingleFile);
+        Assert.Equal(Path.GetFullPath("in"), options.SourceRoot);
+    }
+
+    [Fact]
+    public void A_glob_source_splits_into_a_folder_and_a_pattern()
+    {
+        CliOptions options = Parse("-s", Path.Combine("in", "*.jpg"), "-d", "out", "-t", "png");
+
+        Assert.Equal(Path.GetFullPath("in"), options.SourceRoot);
+        Assert.Equal("*.jpg", options.SourcePattern);
+        Assert.False(options.SourceIsSingleFile);
+    }
+
+    [Fact]
+    public void A_bare_glob_resolves_against_the_current_folder()
+    {
+        CliOptions options = Parse("-s", "*.png", "-d", "out", "-t", "jpg");
+
+        Assert.Equal(Path.GetFullPath("."), options.SourceRoot);
+        Assert.Equal("*.png", options.SourcePattern);
+    }
+
+    [Fact]
+    public void An_existing_file_source_is_recognised_as_a_single_file()
+    {
+        using TestWorkspace workspace = new();
+        string file = workspace.WritePng("only-me.png");
+
+        CliOptions options = Parse("-s", file, "-d", "out", "-t", "jpg");
+
+        Assert.True(options.SourceIsSingleFile);
+        Assert.Equal(workspace.Source, options.SourceRoot);
+        Assert.Equal("only-me.png", options.SourcePattern);
+    }
+
+    [Fact]
+    public void Without_d_the_destination_is_a_named_folder_inside_the_source()
+    {
+        CliOptions options = Parse("-s", "in", "-t", "webp");
+
+        Assert.Equal(Path.Combine(Path.GetFullPath("in"), "Converted to webp"), options.DestinationPath);
+    }
+
+    [Fact]
+    public void Without_d_a_single_file_source_writes_beside_the_file()
+    {
+        using TestWorkspace workspace = new();
+        string file = workspace.WritePng("only-me.png");
+
+        CliOptions options = Parse("-s", file, "-t", "jpg");
+
+        Assert.Equal(Path.Combine(workspace.Source, "Converted to jpg"), options.DestinationPath);
     }
 
     [Fact]
@@ -80,7 +141,6 @@ public class CliOptionsTests
 
     [Theory]
     [InlineData(new[] { "-d", "out", "-t", "jpg" }, "-s")]
-    [InlineData(new[] { "-s", "in", "-t", "jpg" }, "-d")]
     [InlineData(new[] { "-s", "in", "-d", "out" }, "-t")]
     public void Rejects_missing_required_options(string[] args, string expectedFlag)
     {
@@ -130,6 +190,16 @@ public class CliOptionsTests
 
         Assert.Null(outcome.Options);
         Assert.Contains("unknown option", outcome.Error);
+    }
+
+    [Fact]
+    public void A_path_split_by_the_shell_says_so()
+    {
+        // What "-s C:\Property\11631 Suburban Rd" looks like by the time it reaches us.
+        ParseOutcome outcome = CliOptions.Parse(["-s", @"C:\Property\11631", "Suburban", @"Rd\Pictures", "-d", "out", "-t", "jpg"]);
+
+        Assert.Null(outcome.Options);
+        Assert.Contains("double quotes", outcome.Error);
     }
 
     [Fact]

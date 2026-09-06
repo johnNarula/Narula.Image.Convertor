@@ -1,3 +1,5 @@
+using System.IO.Enumeration;
+
 namespace Narula.Image.Convertor;
 
 /// <summary>The work list, plus any items rejected before conversion started.</summary>
@@ -26,6 +28,16 @@ internal static class FileScanner
 
     public static ScanResult Scan(CliOptions options)
     {
+        // An explicitly named file is honoured as given, extension filter and all: the user
+        // pointed at exactly one thing, so the only sensible answer is to try it.
+        if (options.SourceIsSingleFile)
+        {
+            string name = Path.GetFileName(options.SourcePattern);
+            string destination = Path.Combine(options.DestinationPath, Path.ChangeExtension(name, "." + options.TargetType));
+
+            return new ScanResult([new WorkItem(Path.Combine(options.SourceRoot, name), destination, name)], []);
+        }
+
         EnumerationOptions enumeration = new()
         {
             RecurseSubdirectories = options.Recursive,
@@ -34,10 +46,10 @@ internal static class FileScanner
             MatchCasing = MatchCasing.CaseInsensitive,
         };
 
-        string sourceRoot = options.SourcePath;
+        string sourceRoot = options.SourceRoot;
         string destinationPrefix = WithSeparator(options.DestinationPath);
         bool destinationInsideSource =
-            !PathsEqual(options.SourcePath, options.DestinationPath) &&
+            !PathsEqual(options.SourceRoot, options.DestinationPath) &&
             destinationPrefix.StartsWith(WithSeparator(sourceRoot), PathComparison);
 
         List<WorkItem> items = [];
@@ -45,6 +57,14 @@ internal static class FileScanner
         foreach (string file in Directory.EnumerateFiles(sourceRoot, "*", enumeration))
         {
             if (!ImageExtensions.Contains(Path.GetExtension(file)))
+            {
+                continue;
+            }
+
+            // Matched here rather than passed to EnumerateFiles: Win32 pattern semantics have
+            // surprises (*.tif matching .tiff and friends) that this API does not.
+            if (options.SourcePattern != "*" &&
+                !FileSystemName.MatchesSimpleExpression(options.SourcePattern, Path.GetFileName(file), ignoreCase: true))
             {
                 continue;
             }

@@ -22,9 +22,10 @@ internal static class Report
         Console.WriteLine();
         Console.WriteLine(Rule);
 
+        string noun = totalPlanned == 1 ? "file" : "files";
         string counted = results.Count == totalPlanned
-            ? $"{results.Count} files"
-            : $"{results.Count} of {totalPlanned} files";
+            ? $"{results.Count} {noun}"
+            : $"{results.Count} of {totalPlanned} {noun}";
 
         Console.WriteLine($"  {counted}    {elapsed:hh\\:mm\\:ss\\.f}    {perSecond.ToString("0.#", CultureInfo.InvariantCulture)}/sec");
         Console.WriteLine();
