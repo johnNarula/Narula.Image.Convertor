@@ -12,6 +12,7 @@ internal sealed class MagickConverter : IImageConverter
     private readonly MagickFormat _target;
     private readonly bool _targetKeepsAlpha;
     private readonly bool _targetKeepsFrames;
+    private readonly int? _targetMaxDimension;
 
     /// <summary>Format capabilities are settled once here rather than per file.</summary>
     public MagickConverter(CliOptions options)
@@ -19,6 +20,7 @@ internal sealed class MagickConverter : IImageConverter
         _target = options.TargetFormat;
         _targetKeepsAlpha = ImageFormats.SupportsAlpha(_target);
         _targetKeepsFrames = ImageFormats.SupportsMultipleFrames(_target);
+        _targetMaxDimension = ImageFormats.MaxDimension(_target);
     }
 
     public async ValueTask<ConversionResult> ConvertAsync(WorkItem item, CliOptions options, CancellationToken cancellationToken)
@@ -52,12 +54,12 @@ internal sealed class MagickConverter : IImageConverter
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            await Task.Run(() => Encode(item, options, temporaryPath), cancellationToken).ConfigureAwait(false);
+            bool resized = await Task.Run(() => Encode(item, options, temporaryPath), cancellationToken).ConfigureAwait(false);
 
             File.Move(temporaryPath, item.DestinationPath, overwrite: true);
 
             long bytesOut = new FileInfo(item.DestinationPath).Length;
-            return ConversionResult.Converted(item, bytesIn, bytesOut);
+            return ConversionResult.Converted(item, bytesIn, bytesOut, resized ? $"resized to fit {options.TargetType}" : null);
         }
         catch (OperationCanceledException)
         {
@@ -95,8 +97,11 @@ internal sealed class MagickConverter : IImageConverter
     /// Multi-frame sources go through a collection so animation survives into a format that can
     /// hold it; everything else reads a single image, which is the first frame.
     /// </summary>
-    private void Encode(WorkItem item, CliOptions options, string temporaryPath)
+    /// <returns>True when the image had to be scaled down to fit the target's dimension cap.</returns>
+    private bool Encode(WorkItem item, CliOptions options, string temporaryPath)
     {
+        bool resized = false;
+
         if (_targetKeepsFrames)
         {
             using MagickImageCollection frames = new(item.SourcePath);
@@ -107,25 +112,37 @@ internal sealed class MagickConverter : IImageConverter
 
                 foreach (IMagickImage<byte> frame in frames)
                 {
-                    Prepare(frame, options);
+                    resized |= Prepare(frame, options);
                 }
 
                 frames.Write(temporaryPath, _target);
-                return;
+                return resized;
             }
         }
 
         using MagickImage image = new(item.SourcePath);
-        Prepare(image, options);
+        resized = Prepare(image, options);
         image.Write(temporaryPath, _target);
+        return resized;
     }
 
-    private void Prepare(IMagickImage<byte> image, CliOptions options)
+    private bool Prepare(IMagickImage<byte> image, CliOptions options)
     {
         // Bake rotation into the pixels and clear the tag, so the result is upright regardless of
         // whether the target format or the viewer understands EXIF orientation.
         image.AutoOrient();
         image.Orientation = OrientationType.TopLeft;
+
+        // Some containers cap their dimensions — ICO at 512. Scale to fit rather than refuse:
+        // the request only makes sense at icon size. After AutoOrient, so a sideways photo is
+        // measured the way it will actually be stored.
+        bool resized = false;
+
+        if (_targetMaxDimension is { } cap && (image.Width > cap || image.Height > cap))
+        {
+            image.Resize(new MagickGeometry((uint)cap, (uint)cap) { Greater = true });
+            resized = true;
+        }
 
         if (!options.PreserveTransparency || !_targetKeepsAlpha)
         {
@@ -142,6 +159,8 @@ internal sealed class MagickConverter : IImageConverter
         {
             image.Quality = (uint)quality;
         }
+
+        return resized;
     }
 
     /// <summary>

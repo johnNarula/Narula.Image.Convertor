@@ -92,6 +92,15 @@ internal sealed class TestWorkspace : IDisposable
         return path;
     }
 
+    /// <summary>A JPEG at an arbitrary size, for exercising per-format dimension limits.</summary>
+    public string WriteLargeJpeg(string relativePath, int width, int height)
+    {
+        string path = InSource(relativePath);
+        using MagickImage image = new(MagickColors.CornflowerBlue, (uint)width, (uint)height);
+        image.Write(path, MagickFormat.Jpeg);
+        return path;
+    }
+
     /// <summary>A file with an image extension and nothing but noise inside.</summary>
     public string WriteCorrupt(string relativePath)
     {

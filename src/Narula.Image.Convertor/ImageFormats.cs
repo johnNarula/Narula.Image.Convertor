@@ -75,6 +75,26 @@ internal static class ImageFormats
         _ => format,
     };
 
+    /// <summary>
+    /// The largest dimension a format will accept, where one applies. ICO and CUR are the only
+    /// common cases.
+    ///
+    /// 256, not 512. ImageMagick's writer tolerates up to 512, but an ICO directory entry stores
+    /// each dimension in a single byte where 0 means 256, so anything larger cannot describe
+    /// itself: a 512x320 entry is written with the directory claiming 256x256 while the embedded
+    /// PNG is really 512x320. Consumers pick an entry by reading that directory, so such a file is
+    /// malformed however willing the encoder was to produce it.
+    ///
+    /// Sources larger than this are scaled to fit before encoding, keeping their aspect ratio:
+    /// an icon is small by definition, so refusing a photo would be refusing the only sensible
+    /// interpretation of the request.
+    /// </summary>
+    public static int? MaxDimension(MagickFormat format) => format switch
+    {
+        MagickFormat.Ico or MagickFormat.Icon or MagickFormat.Cur => 256,
+        _ => null,
+    };
+
     /// <summary>The -formats listing: what can be read, what can be written.</summary>
     public static void WriteListing(TextWriter writer)
     {

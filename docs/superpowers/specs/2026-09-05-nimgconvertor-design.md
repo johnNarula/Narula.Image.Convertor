@@ -358,12 +358,30 @@ scan therefore keeps a deliberate list of picture extensions.
 Explicit intent overrides it. Naming a file, or writing a glob with a concrete extension
 such as `*.pdf`, sets `SourceExtensionIsExplicit` and bypasses the list entirely.
 
+## Dimension caps and the one place scaling happens
+
+Resizing was a stated non-goal, and remains one everywhere except formats that physically
+cannot hold the image. ICO is the case that matters: converting a photo to an icon is a
+request that only makes sense at icon size, so refusing it would be refusing the obvious
+interpretation. Sources larger than the cap are scaled to fit with their aspect ratio
+intact, after uprighting so a sideways photo is measured as it will be stored, and the
+report shows a `Resized` count.
+
+The cap is **256, not 512**. ImageMagick's ICO writer accepts up to 512 per dimension and
+rejects 513 — measured by bisection. But an ICO directory entry stores each dimension in a
+single byte, where 0 means 256, so an entry larger than 256 cannot describe itself: at 512
+the directory claims 256x256 while the embedded PNG is really 512x320. Consumers choose an
+entry by reading that directory, so the file is malformed however willing the encoder was
+to write it. A test parses the directory of a generated ICO and asserts it matches the
+payload, so this cannot regress quietly.
+
 ## Behaviour changes from v1
 
 - Animation is preserved when the target supports multiple frames, instead of always
   collapsing to the first frame. GIF → WebP keeps all frames; GIF → JPEG keeps one.
 - `-bg` accepts ImageMagick colour names (`white`, `chartreuse`) as well as hex.
 - `-q` applies to any format that records a quality, not just JPEG and WebP.
+- Images bound for a capped format (ICO, CUR) are scaled to fit rather than rejected
 - Failure reasons are cleaned up before display: ImageMagick appends the offending path
   and the C source location that raised the error, both of which are noise in a report
   that already shows the path.

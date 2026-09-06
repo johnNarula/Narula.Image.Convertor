@@ -124,6 +124,9 @@ nImgConvertor -s .\photos -r -d .\converted -t jpg -o false
 - **Writes are atomic** — each output is encoded to a temp file and renamed, so Ctrl+C
   never leaves a half-written image behind.
 - **A destination inside the source folder is not re-scanned as input.**
+- **Formats with a size cap get a scaled copy, not a failure.** ICO cannot hold anything
+  larger than 256x256, so a photo is scaled to fit that box with its aspect ratio intact,
+  and the report says how many were resized. Nothing else is ever resized.
 - **A blocked destination is explained, not just reported.** See below.
 
 ## If it cannot create the destination folder
@@ -169,7 +172,8 @@ nImgConvertor -s "C:\scans\*.pdf" -t png
 ### Limitations
 
 Writing HEIC is not supported. Vector sources (SVG, AI, EPS) rasterise at their natural
-size — there is no resize flag to control that.
+size, and there is no general resize flag — the only scaling the tool does is fitting an
+image into a target that has a hard dimension cap (ICO and CUR, at 256x256).
 
 ## Building
 

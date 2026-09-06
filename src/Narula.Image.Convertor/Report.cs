@@ -30,7 +30,10 @@ internal static class Report
         Console.WriteLine($"  {counted}    {elapsed:hh\\:mm\\:ss\\.f}    {perSecond.ToString("0.#", CultureInfo.InvariantCulture)}/sec");
         Console.WriteLine();
 
+        int resized = results.Count(r => r.Outcome == Outcome.Converted && r.Reason is not null);
+
         WriteCount("Converted", converted, null);
+        if (resized > 0) WriteCount("Resized", resized, $"(to fit {options.TargetType})");
         if (copied > 0) WriteCount("Copied", copied, $"(already {options.TargetType})");
         if (skipped > 0) WriteCount("Skipped", skipped, "(exists, -o false)");
         if (failures.Count > 0) WriteCount("Failed", failures.Count, null, ConsoleColor.Red);
