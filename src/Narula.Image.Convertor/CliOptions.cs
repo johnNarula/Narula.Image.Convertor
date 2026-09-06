@@ -1,4 +1,4 @@
-using SixLabors.ImageSharp;
+using ImageMagick;
 
 namespace Narula.Image.Convertor;
 
@@ -17,22 +17,31 @@ internal sealed record CliOptions
     /// <summary>True when -s named one existing file, which is then converted regardless of its extension.</summary>
     public bool SourceIsSingleFile { get; init; }
 
+    /// <summary>
+    /// True when the user asked for a specific extension, by naming a file or writing a glob such
+    /// as *.pdf. Explicit intent overrides the scanner's default list of image extensions.
+    /// </summary>
+    public bool SourceExtensionIsExplicit { get; init; }
+
     public required string DestinationPath { get; init; }
 
     /// <summary>Lower-cased, no leading dot — exactly as it will appear on output files.</summary>
     public required string TargetType { get; init; }
 
+    /// <summary>The encoder <see cref="TargetType"/> resolved to.</summary>
+    public required MagickFormat TargetFormat { get; init; }
+
     public bool Recursive { get; init; }
-    public int Quality { get; init; } = 85;
+
+    /// <summary>Null when -q was not given, so formats keep whatever quality they were written at.</summary>
+    public int? Quality { get; init; } = 85;
+
     public bool Overwrite { get; init; } = true;
     public bool PreserveTransparency { get; init; } = true;
-    public Color Background { get; init; } = Color.White;
+    public MagickColor Background { get; init; } = new(MagickColors.White);
     public bool PreserveMetadata { get; init; } = true;
     public int Parallelism { get; init; } = Environment.ProcessorCount;
     public bool StopOnError { get; init; }
-
-    /// <summary>Target types we can encode. Aliases (jpg/jpeg, tiff/tif) are both accepted and both preserved on output.</summary>
-    public static readonly string[] TargetTypes = ["jpg", "jpeg", "png", "webp", "bmp", "gif", "tiff", "tif", "tga"];
 
     public static ParseOutcome Parse(string[] args)
     {
@@ -43,9 +52,11 @@ internal sealed record CliOptions
 
         string? source = null, destination = null, target = null;
         bool recursive = false, stopOnError = false;
-        int quality = 85, parallelism = Environment.ProcessorCount;
+        int? quality = 85;
+        int parallelism = Environment.ProcessorCount;
         bool overwrite = true, preserveTransparency = true, preserveMetadata = true;
-        Color background = Color.White;
+        MagickColor background = new(MagickColors.White);
+        MagickFormat targetFormat = MagickFormat.Unknown;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -55,6 +66,9 @@ internal sealed record CliOptions
             {
                 case "-h" or "--help" or "-?" or "/?":
                     return ParseOutcome.Help;
+
+                case "-formats" or "--formats":
+                    return ParseOutcome.Formats;
 
                 case "-r":
                     recursive = true;
@@ -77,18 +91,24 @@ internal sealed record CliOptions
                 case "-t":
                     if (!TryTakeValue(args, ref i, flag, out string t, out err)) return ParseOutcome.Invalid(err);
                     target = t.TrimStart('.').ToLowerInvariant();
-                    if (!TargetTypes.Contains(target))
+
+                    if (ImageFormats.ResolveTarget(target) is not { } resolved)
                     {
-                        return ParseOutcome.Invalid($"unsupported target type '{t}'. Supported: {string.Join(' ', TargetTypes)}");
+                        return ParseOutcome.Invalid(
+                            $"nothing can write '{t}'. Common targets: jpg png webp avif tiff bmp gif ico jxl pdf. " +
+                            "Run 'nImgConvertor -formats' for the full list");
                     }
+
+                    targetFormat = resolved;
                     break;
 
                 case "-q":
                     if (!TryTakeValue(args, ref i, flag, out string q, out err)) return ParseOutcome.Invalid(err);
-                    if (!int.TryParse(q, out quality) || quality is < 1 or > 100)
+                    if (!int.TryParse(q, out int parsedQuality) || parsedQuality is < 1 or > 100)
                     {
                         return ParseOutcome.Invalid($"-q must be a whole number from 1 to 100, got '{q}'");
                     }
+                    quality = parsedQuality;
                     break;
 
                 case "-p":
@@ -113,10 +133,16 @@ internal sealed record CliOptions
 
                 case "-bg":
                     if (!TryTakeValue(args, ref i, flag, out string bg, out err)) return ParseOutcome.Invalid(err);
-                    if (!Color.TryParseHex(bg, out background))
+
+                    try
                     {
-                        return ParseOutcome.Invalid($"-bg must be a hex colour such as #FFFFFF, got '{bg}'");
+                        background = new MagickColor(bg);
                     }
+                    catch (Exception exception) when (exception is ArgumentException or MagickException)
+                    {
+                        return ParseOutcome.Invalid($"-bg must be a colour such as #FFFFFF or white, got '{bg}'");
+                    }
+
                     break;
 
                 default:
@@ -131,7 +157,7 @@ internal sealed record CliOptions
         if (source is null) return ParseOutcome.Invalid("-s (source) is required");
         if (target is null) return ParseOutcome.Invalid("-t (target type) is required");
 
-        (string root, string pattern, bool singleFile) = ResolveSource(source);
+        (string root, string pattern, bool singleFile, bool explicitExtension) = ResolveSource(source);
 
         // Without -d, output lands in a clearly named folder beside the originals. That folder
         // sits inside the source root, and FileScanner already refuses to read its own output.
@@ -145,8 +171,10 @@ internal sealed record CliOptions
             SourceRoot = root,
             SourcePattern = pattern,
             SourceIsSingleFile = singleFile,
+            SourceExtensionIsExplicit = explicitExtension,
             DestinationPath = resolvedDestination,
             TargetType = target,
+            TargetFormat = targetFormat,
             Recursive = recursive,
             Quality = quality,
             Overwrite = overwrite,
@@ -163,7 +191,7 @@ internal sealed record CliOptions
     /// only the names that match; an existing file means that file alone. A path that is none of
     /// those is treated as a folder, so <see cref="Application"/> can report it as missing.
     /// </summary>
-    private static (string Root, string Pattern, bool SingleFile) ResolveSource(string source)
+    private static (string Root, string Pattern, bool SingleFile, bool ExplicitExtension) ResolveSource(string source)
     {
         string trimmed = source.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
@@ -177,17 +205,22 @@ internal sealed record CliOptions
         if (lastSegment.Contains('*') || lastSegment.Contains('?'))
         {
             string directory = Path.GetDirectoryName(trimmed) is { Length: > 0 } parent ? parent : ".";
-            return (Path.GetFullPath(directory), lastSegment, false);
+
+            // "*.pdf" names an extension outright; "*" or "shot-*" does not.
+            string extension = Path.GetExtension(lastSegment);
+            bool explicitExtension = extension.Length > 1 && !extension.Contains('*') && !extension.Contains('?');
+
+            return (Path.GetFullPath(directory), lastSegment, false, explicitExtension);
         }
 
         string full = Path.GetFullPath(trimmed);
 
         if (File.Exists(full) && !Directory.Exists(full))
         {
-            return (Path.GetDirectoryName(full) ?? ".", Path.GetFileName(full), true);
+            return (Path.GetDirectoryName(full) ?? ".", Path.GetFileName(full), true, true);
         }
 
-        return (full, "*", false);
+        return (full, "*", false, false);
     }
 
     private static bool TryTakeValue(string[] args, ref int i, string flag, out string value, out string? error)
@@ -224,7 +257,7 @@ internal sealed record CliOptions
     }
 
     public const string HelpText = """
-        nImgConvertor — batch image format conversion
+        nImgConvertor 2 — batch image format conversion
 
         Usage:
           nImgConvertor -s <source> -t <type> [options]
@@ -236,19 +269,25 @@ internal sealed record CliOptions
           -r             Recurse into subfolders; destination mirrors the tree
           -d <path>      Destination folder. Defaults to a "Converted to <type>"
                          folder inside the source folder
-          -t <type>      Target type: jpg jpeg png webp bmp gif tiff tif tga
-          -q <1-100>     Encoder quality (default 85; JPEG and WebP only)
+          -t <type>      Target type. Common ones:
+                           jpg png webp avif tiff bmp gif ico jxl pdf
+                         Nearly 200 are writable — run -formats for the full list
+          -q <1-100>     Encoder quality (default 85; formats that record one)
           -o <bool>      Overwrite existing destination files (default true)
           -trans <bool>  Preserve transparency (default true)
-          -bg <#RRGGBB>  Matte colour used when flattening (default #FFFFFF)
+          -bg <colour>   Matte used when flattening, #RRGGBB or a name (default #FFFFFF)
           -m <bool>      Preserve EXIF/ICC metadata (default true)
           -p <n>         Parallel workers (default = CPU count)
           -e             Stop on first failure
+          -formats       List every format that can be read and written
           -h             Show this help
 
+        Reads HEIC, AVIF, camera RAW, PSD, SVG and around 260 others.
+
         Examples:
-          nImgConvertor -s .\photos -d .\out -t jpg
+          nImgConvertor -s .\photos -t jpg
           nImgConvertor -s .\photos -r -d .\out -t webp -q 80
+          nImgConvertor -s "C:\iPhone\*.heic" -t jpg
           nImgConvertor -s .\icons -d .\out -t jpg -trans false -bg #000000
 
         Exit codes:
@@ -258,10 +297,12 @@ internal sealed record CliOptions
         """;
 }
 
-/// <summary>The three ways parsing can end: show help, complain, or hand back options.</summary>
-internal sealed record ParseOutcome(CliOptions? Options, string? Error, bool HelpRequested)
+/// <summary>How parsing ended: show help, list formats, complain, or hand back options.</summary>
+internal sealed record ParseOutcome(CliOptions? Options, string? Error, bool HelpRequested, bool FormatsRequested = false)
 {
     public static readonly ParseOutcome Help = new(null, null, true);
+
+    public static readonly ParseOutcome Formats = new(null, null, false, true);
 
     public static ParseOutcome Invalid(string? error) => new(null, error ?? "invalid arguments", false);
 

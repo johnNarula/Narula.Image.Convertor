@@ -1,7 +1,6 @@
+using ImageMagick;
+
 using Narula.Image.Convertor;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Metadata.Profiles.Exif;
-using SixLabors.ImageSharp.PixelFormats;
 
 namespace ImageConvertor.Tests;
 
@@ -19,11 +18,29 @@ public class ConversionTests
 
         string output = workspace.InDestination("photo.jpg");
         Assert.True(File.Exists(output));
-        Assert.Equal("JPEG", Image.DetectFormat(output).Name);
+        Assert.Equal(MagickFormat.Jpeg, TestWorkspace.FormatOf(output));
 
-        using Image<Rgba32> image = Image.Load<Rgba32>(output);
-        Assert.Equal(64, image.Width);
-        Assert.Equal(48, image.Height);
+        MagickImageInfo info = new(output);
+        Assert.Equal((uint)TestWorkspace.Width, info.Width);
+        Assert.Equal((uint)TestWorkspace.Height, info.Height);
+    }
+
+    [Theory]
+    [InlineData("png")]
+    [InlineData("webp")]
+    [InlineData("avif")]
+    [InlineData("tiff")]
+    [InlineData("bmp")]
+    [InlineData("ico")]
+    public async Task Converts_into_every_common_target(string target)
+    {
+        using TestWorkspace workspace = new();
+        workspace.WriteJpeg("photo.jpg", 90);
+
+        ConversionResult result = await ConvertAsync(workspace, "photo.jpg", target);
+
+        Assert.Equal(Outcome.Converted, result.Outcome);
+        Assert.True(File.Exists(workspace.InDestination($"photo.{target}")));
     }
 
     [Fact]
@@ -32,14 +49,12 @@ public class ConversionTests
         using TestWorkspace workspace = new();
         workspace.WritePng("photo.png");
 
-        ConversionResult low = await ConvertAsync(workspace, "photo.png", "jpg", "-q", "5");
+        await ConvertAsync(workspace, "photo.png", "jpg", "-q", "5");
         long lowBytes = new FileInfo(workspace.InDestination("photo.jpg")).Length;
 
-        ConversionResult high = await ConvertAsync(workspace, "photo.png", "jpg", "-q", "97");
+        await ConvertAsync(workspace, "photo.png", "jpg", "-q", "97");
         long highBytes = new FileInfo(workspace.InDestination("photo.jpg")).Length;
 
-        Assert.Equal(Outcome.Converted, low.Outcome);
-        Assert.Equal(Outcome.Converted, high.Outcome);
         Assert.True(lowBytes < highBytes, $"expected q5 ({lowBytes}) to be smaller than q97 ({highBytes})");
     }
 
@@ -51,12 +66,10 @@ public class ConversionTests
 
         await ConvertAsync(workspace, "icon.png", "jpg", "-bg", "#FF0000");
 
-        using Image<Rgba32> image = Image.Load<Rgba32>(workspace.InDestination("icon.jpg"));
-        Rgba32 wasTransparent = image[60, 24];
+        IMagickColor<byte> wasTransparent = TestWorkspace.PixelAt(workspace.InDestination("icon.jpg"), 60, 24);
 
-        Assert.Equal(255, wasTransparent.A);
         Assert.True(wasTransparent.R > 200 && wasTransparent.G < 60 && wasTransparent.B < 60,
-            $"expected the matte colour to show through, got {wasTransparent}");
+            $"expected the matte colour to show through, got {wasTransparent.ToHexString()}");
     }
 
     [Fact]
@@ -67,8 +80,7 @@ public class ConversionTests
 
         await ConvertAsync(workspace, "icon.png", "webp");
 
-        using Image<Rgba32> image = Image.Load<Rgba32>(workspace.InDestination("icon.webp"));
-        Assert.Equal(0, image[60, 24].A);
+        Assert.Equal(0, TestWorkspace.PixelAt(workspace.InDestination("icon.webp"), 60, 24).A);
     }
 
     [Fact]
@@ -82,11 +94,9 @@ public class ConversionTests
         // Copying the original across would have silently ignored -trans.
         Assert.Equal(Outcome.Converted, result.Outcome);
 
-        using Image<Rgba32> image = Image.Load<Rgba32>(workspace.InDestination("icon.png"));
-        Rgba32 wasTransparent = image[60, 24];
-
-        Assert.Equal(255, wasTransparent.A);
-        Assert.True(wasTransparent.G > 200 && wasTransparent.R < 60, $"expected green matte, got {wasTransparent}");
+        IMagickColor<byte> wasTransparent = TestWorkspace.PixelAt(workspace.InDestination("icon.png"), 60, 24);
+        Assert.True(wasTransparent.G > 200 && wasTransparent.R < 60,
+            $"expected green matte, got {wasTransparent.ToHexString()}");
     }
 
     [Fact]
@@ -125,53 +135,71 @@ public class ConversionTests
     }
 
     [Fact]
+    public async Task Jpg_and_jpeg_are_treated_as_the_same_format()
+    {
+        using TestWorkspace workspace = new();
+        workspace.WriteJpeg("holiday.jpg", 85);
+
+        ConversionResult result = await ConvertAsync(workspace, "holiday.jpg", "jpeg", "-q", "85");
+
+        Assert.Equal(Outcome.Copied, result.Outcome);
+        Assert.True(File.Exists(workspace.InDestination("holiday.jpeg")));
+    }
+
+    [Fact]
     public async Task Stripping_metadata_forces_a_re_encode_and_removes_the_profile()
     {
         using TestWorkspace workspace = new();
-        workspace.WriteRotatedJpeg("tagged.jpg", orientation: 1, quality: 85);
+        workspace.WriteRotatedJpeg("tagged.jpg", OrientationType.TopLeft);
 
         ConversionResult result = await ConvertAsync(workspace, "tagged.jpg", "jpg", "-q", "85", "-m", "false");
 
         Assert.Equal(Outcome.Converted, result.Outcome);
 
-        ImageInfo info = Image.Identify(workspace.InDestination("tagged.jpg"));
-        Assert.Null(info.Metadata.ExifProfile);
+        using MagickImage image = new(workspace.InDestination("tagged.jpg"));
+        Assert.Null(image.GetExifProfile());
     }
 
     [Fact]
     public async Task A_rotated_photo_is_uprighted_rather_than_copied()
     {
         using TestWorkspace workspace = new();
-        workspace.WriteRotatedJpeg("sideways.jpg", orientation: 6, quality: 85);
+        workspace.WriteRotatedJpeg("sideways.jpg", OrientationType.RightTop);
 
         ConversionResult result = await ConvertAsync(workspace, "sideways.jpg", "jpg", "-q", "85");
 
         // A straight copy would leave the photo dependent on the viewer honouring the EXIF tag.
         Assert.Equal(Outcome.Converted, result.Outcome);
 
-        using Image<Rgba32> image = Image.Load<Rgba32>(workspace.InDestination("sideways.jpg"));
-        Assert.Equal(48, image.Width);
-        Assert.Equal(64, image.Height);
-
-        ushort? orientation = image.Metadata.ExifProfile?.TryGetValue(ExifTag.Orientation, out IExifValue<ushort>? value) == true
-            ? value!.Value
-            : null;
-
-        Assert.True(orientation is null or 1, $"expected the orientation tag to be cleared, got {orientation}");
+        MagickImageInfo info = new(workspace.InDestination("sideways.jpg"));
+        Assert.Equal((uint)TestWorkspace.Height, info.Width);
+        Assert.Equal((uint)TestWorkspace.Width, info.Height);
+        Assert.True(info.Orientation is OrientationType.Undefined or OrientationType.TopLeft,
+            $"expected the orientation tag to be cleared, got {info.Orientation}");
     }
 
     [Fact]
-    public async Task An_animated_gif_contributes_only_its_first_frame()
+    public async Task An_animated_gif_contributes_only_its_first_frame_to_a_still_format()
     {
         using TestWorkspace workspace = new();
         workspace.WriteAnimatedGif("spinner.gif", frames: 4);
 
-        ConversionResult result = await ConvertAsync(workspace, "spinner.gif", "png");
+        ConversionResult result = await ConvertAsync(workspace, "spinner.gif", "jpg");
 
         Assert.Equal(Outcome.Converted, result.Outcome);
+        Assert.Equal(1, TestWorkspace.FrameCount(workspace.InDestination("spinner.jpg")));
+    }
 
-        using Image<Rgba32> image = Image.Load<Rgba32>(workspace.InDestination("spinner.png"));
-        Assert.Equal(1, image.Frames.Count);
+    [Fact]
+    public async Task An_animated_gif_keeps_its_frames_in_a_format_that_can_hold_them()
+    {
+        using TestWorkspace workspace = new();
+        workspace.WriteAnimatedGif("spinner.gif", frames: 4);
+
+        ConversionResult result = await ConvertAsync(workspace, "spinner.gif", "webp");
+
+        Assert.Equal(Outcome.Converted, result.Outcome);
+        Assert.Equal(4, TestWorkspace.FrameCount(workspace.InDestination("spinner.webp")));
     }
 
     [Fact]
@@ -201,7 +229,7 @@ public class ConversionTests
         ConversionResult result = await ConvertAsync(workspace, "photo.png", "jpg");
 
         Assert.Equal(Outcome.Converted, result.Outcome);
-        Assert.Equal("JPEG", Image.DetectFormat(workspace.InDestination("photo.jpg")).Name);
+        Assert.Equal(MagickFormat.Jpeg, TestWorkspace.FormatOf(workspace.InDestination("photo.jpg")));
     }
 
     [Fact]
@@ -215,18 +243,6 @@ public class ConversionTests
         Assert.Equal(Outcome.Failed, result.Outcome);
         Assert.False(File.Exists(workspace.InDestination("broken.jpg")));
         Assert.False(File.Exists(workspace.InDestination("broken.jpg.nimgtmp")));
-    }
-
-    [Fact]
-    public async Task A_heic_file_is_reported_as_unsupported()
-    {
-        using TestWorkspace workspace = new();
-        workspace.WriteCorrupt("from-phone.heic");
-
-        ConversionResult result = await ConvertAsync(workspace, "from-phone.heic", "jpg");
-
-        Assert.Equal(Outcome.Failed, result.Outcome);
-        Assert.Equal("unsupported format (HEIC/AVIF)", result.Reason);
     }
 
     [Fact]
@@ -250,6 +266,6 @@ public class ConversionTests
         WorkItem item = scan.Items.Single(i =>
             string.Equals(i.RelativePath, relativePath, StringComparison.OrdinalIgnoreCase));
 
-        return await new ImageSharpConverter().ConvertAsync(item, options, CancellationToken.None);
+        return await new MagickConverter(options).ConvertAsync(item, options, CancellationToken.None);
     }
 }

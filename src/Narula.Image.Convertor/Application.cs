@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using ImageMagick;
 
 namespace Narula.Image.Convertor;
 
@@ -15,6 +16,12 @@ internal static class Application
         if (parsed.HelpRequested)
         {
             Console.WriteLine(CliOptions.HelpText);
+            return 0;
+        }
+
+        if (parsed.FormatsRequested)
+        {
+            ImageFormats.WriteListing(Console.Out);
             return 0;
         }
 
@@ -88,8 +95,11 @@ internal static class Application
             return 0;
         }
 
+        // We run our own workers, so ImageMagick must not also fan out per image.
+        ResourceLimits.Thread = 1;
+
         ProgressReporter progress = new(scan.Items.Count);
-        ImageSharpConverter converter = new();
+        MagickConverter converter = new(options);
 
         Stopwatch stopwatch = Stopwatch.StartNew();
         IReadOnlyList<ConversionResult> results =
