@@ -166,12 +166,20 @@
 
           <TextBlock Classes="hint" Text="{Binding TargetDescription}" Margin="2,8,0,0" />
 
-          <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0"
-                      IsVisible="{Binding IconSizeApplies}">
-            <TextBlock Text="Icon size" VerticalAlignment="Center" />
-            <ComboBox x:Name="IconSizeBox" Width="120" ItemsSource="{Binding IconSizes}"
-                      SelectedItem="{Binding IconSize}" PlaceholderText="All sizes" />
-            <Button x:Name="ClearIconSize" Content="All sizes" />
+          <!--
+            One row, two meanings. Writing an icon puts sizes into it; reading one takes a size
+            out of it. The wording follows whichever direction is in play, because "All sizes"
+            is nonsense when only one image can come out.
+          -->
+          <StackPanel Margin="0,12,0,0" IsVisible="{Binding IconSizeApplies}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="{Binding IconSizeLabel}" VerticalAlignment="Center" />
+              <ComboBox x:Name="IconSizeBox" Width="120" ItemsSource="{Binding IconSizes}"
+                        SelectedItem="{Binding IconSize}"
+                        PlaceholderText="{Binding IconSizeDefaultLabel}" />
+              <Button x:Name="ClearIconSize" Content="{Binding IconSizeDefaultLabel}" />
+            </StackPanel>
+            <TextBlock Classes="hint" Text="{Binding IconSizeNote}" Margin="2,6,0,0" />
           </StackPanel>
         </StackPanel>
       </Border>

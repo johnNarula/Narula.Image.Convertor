@@ -34,7 +34,7 @@ It is not signed, so SmartScreen will call the publisher unknown: *More info*, t
 *Run anyway*. See `src/Narula.Image.Convertor.Setup/README.md` for how it is built and exactly
 what it touches.
 
-Copying the two executables into a folder yourself works just as well; nothing depends on
+Copying the three executables into a folder yourself works just as well; nothing depends on
 being installed.
 
 ## The window
@@ -67,6 +67,10 @@ The format picker takes every one of the 197 writable formats and filters as you
 ImageMagick's own description of whatever is selected. The source has an "only these files"
 filter, defaulting to all supported image types, which narrows a folder scan to one extension.
 
+When an icon is on either end of the conversion, a size control appears and says which
+direction it means: *Size to take* and *Largest* when reading an icon, *Icon sizes* and
+*All sizes* when writing one. Narrowing the filter to `.ico` counts as reading icons too.
+
 The window and the command line are the same program. The window builds an argument list and
 hands it to the same parser, so every default, rule and quirk applies identically to both,
 and neither can grow behaviour the other lacks.
@@ -86,8 +90,11 @@ same engine the window and the command line use:
 Claude Code takes one line:
 
 ```bash
-claude mcp add img2img -- "%LOCALAPPDATA%\Programs\img2img\img2imgMcp.exe"
+claude mcp add img2img -- "C:\Program Files\img2img\img2imgMcp.exe"
 ```
+
+(that is the all-users path; a per-user install puts it in
+`%LOCALAPPDATA%\Programs\img2img` instead)
 
 Any other client wants the JSON, which the server will print for you with the correct path
 already filled in:
@@ -205,7 +212,8 @@ img2img -s .\photos -r -d .\converted -t jpg -o false
   checking whether it survived, so it stays correct across all ~190 targets.
 - **Animation is kept when the target can hold it** (GIF, WebP, TIFF, AVIF and others) and
   collapses to the first frame when it cannot. This is read from ImageMagick per format,
-  not from a list baked into the tool.
+  not from a list baked into the tool. An `.ico` source is the exception: its frames are
+  alternate *sizes*, not animation, so one is always chosen — see below.
 - **Non-image files are ignored**, not reported as failures.
 - **`.heic` / `.heif` / `.avif` are listed as failures** rather than skipped silently, so
   you know those files were in the folder (see limitations).
@@ -257,10 +265,15 @@ Comments and trailing commas are allowed, so the file can be hand-edited.
 
 An `.ico` holds the same picture at several sizes, so it needs saying which one is meant.
 
-**Reading one**, the largest is used. Reading an icon as a plain image otherwise takes
-whichever size the file lists first — usually 16x16, which is a surprising answer to
-"convert this icon to a png". `-iconsize 32` picks a specific one, and asking for a size the
-file does not contain fails with a list of what it does hold.
+**Reading one**, the largest is used, whatever the target. Reading an icon as a plain image
+otherwise takes whichever size the file lists first — usually 16x16, which is a surprising
+answer to "convert this icon to a png". `-iconsize 32` picks a specific one, and asking for a
+size the file does not contain fails with a list of what it does hold.
+
+That holds even for targets that can carry several frames. Until 1.0.26.0906 it did not:
+converting a seven-size icon to TIFF or WebP wrote all seven as *pages*, and the file then
+reported itself as 16x16 — the first page — so anything opening it saw a thumbnail. Real
+animation is unaffected; an animated GIF still keeps every frame.
 
 **Writing one**, every conventional size the source can supply is produced in a single
 `.ico` — 16, 32, 48, 64, 128 and 256. Sizes larger than the source are skipped rather than

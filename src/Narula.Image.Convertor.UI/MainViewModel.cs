@@ -64,7 +64,15 @@ internal sealed class MainViewModel : INotifyPropertyChanged
     public string SourceFilter
     {
         get => _sourceFilter;
-        set => Set(ref _sourceFilter, string.IsNullOrWhiteSpace(value) ? AllTypes : value);
+        set
+        {
+            // Narrowing a folder to .ico is another way of saying the source is an icon, so the
+            // size controls have to hear about it.
+            if (Set(ref _sourceFilter, string.IsNullOrWhiteSpace(value) ? AllTypes : value))
+            {
+                NotifyIconSize();
+            }
+        }
     }
 
     public ObservableCollection<string> Failures { get; } = [];
@@ -79,7 +87,7 @@ internal sealed class MainViewModel : INotifyPropertyChanged
                 Notify(nameof(CanConvert));
                 Notify(nameof(DestinationHint));
                 Notify(nameof(DestinationNote));
-                Notify(nameof(IconSizeApplies));
+                NotifyIconSize();
             }
         }
     }
@@ -109,7 +117,7 @@ internal sealed class MainViewModel : INotifyPropertyChanged
                 Notify(nameof(TargetDescription));
                 Notify(nameof(DestinationHint));
                 Notify(nameof(DestinationNote));
-                Notify(nameof(IconSizeApplies));
+                NotifyIconSize();
                 Notify(nameof(QualityApplies));
             }
         }
@@ -151,10 +159,43 @@ internal sealed class MainViewModel : INotifyPropertyChanged
     /// <summary>Everything that sets up a run is locked while one is in flight.</summary>
     public bool IsIdle => !Running;
 
-    /// <summary>Icon sizes only mean something when an icon is on one end of the conversion.</summary>
-    public bool IconSizeApplies =>
-        Target.Equals("ico", StringComparison.OrdinalIgnoreCase) ||
-        Source.EndsWith(".ico", StringComparison.OrdinalIgnoreCase);
+    /// <summary>
+    /// Reading an icon: a chosen size comes out of it, largest unless told otherwise. True for a
+    /// named .ico, and for a folder narrowed to icons by the filter.
+    /// </summary>
+    public bool SourceIsIcon =>
+        IsIconExtension(Path.GetExtension(Source)) || IsIconExtension(SourceFilter);
+
+    /// <summary>Writing an icon: sizes go into it, all of them unless told otherwise.</summary>
+    public bool TargetIsIcon => IsIconExtension("." + Target);
+
+    /// <summary>The size control means something in both directions, but not the same thing.</summary>
+    public bool IconSizeApplies => SourceIsIcon || TargetIsIcon;
+
+    public string IconSizeLabel => TargetIsIcon ? "Icon sizes" : "Size to take";
+
+    /// <summary>What "leave it alone" means here, which differs by direction.</summary>
+    public string IconSizeDefaultLabel => TargetIsIcon ? "All sizes" : "Largest";
+
+    public string IconSizeNote => TargetIsIcon
+        ? "An icon holds several sizes. Every conventional size up to the source's own is written, unless one is chosen here."
+        : "An icon holds several sizes. The largest is taken unless one is chosen here.";
+
+    /// <summary>Everything the icon row shows moves together, in both directions.</summary>
+    private void NotifyIconSize()
+    {
+        Notify(nameof(SourceIsIcon));
+        Notify(nameof(TargetIsIcon));
+        Notify(nameof(IconSizeApplies));
+        Notify(nameof(IconSizeLabel));
+        Notify(nameof(IconSizeDefaultLabel));
+        Notify(nameof(IconSizeNote));
+    }
+
+    private static bool IsIconExtension(string? extension) =>
+        extension is not null &&
+        (extension.Equals(".ico", StringComparison.OrdinalIgnoreCase) ||
+         extension.Equals(".cur", StringComparison.OrdinalIgnoreCase));
 
     public bool QualityApplies => !Target.Equals("png", StringComparison.OrdinalIgnoreCase);
 

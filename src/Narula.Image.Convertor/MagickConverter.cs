@@ -117,7 +117,7 @@ internal sealed class MagickConverter : IImageConverter
             return WriteIcon(item, options, temporaryPath);
         }
 
-        if (IsMultiSizeIcon(item.SourcePath, options))
+        if (IsMultiSizeIcon(item.SourcePath))
         {
             using MagickImageCollection sizes = new(item.SourcePath);
             using IMagickImage<byte> chosen = SelectIconFrame(sizes, options);
@@ -216,7 +216,7 @@ internal sealed class MagickConverter : IImageConverter
     /// <summary>The image an icon should be built from, unwrapping a multi-size icon source.</summary>
     private IMagickImage<byte> ReadForIcon(WorkItem item, CliOptions options)
     {
-        if (IsMultiSizeIcon(item.SourcePath, options))
+        if (IsMultiSizeIcon(item.SourcePath))
         {
             using MagickImageCollection sizes = new(item.SourcePath);
             return SelectIconFrame(sizes, options);
@@ -226,17 +226,15 @@ internal sealed class MagickConverter : IImageConverter
     }
 
     /// <summary>
-    /// True when the source is an icon carrying more than one size and we are picking one out of
-    /// it. A multi-size icon converted to another icon keeps all its sizes unless -iconsize asks
-    /// for a specific one.
+    /// True when the source is an icon carrying more than one size, so one of them has to be
+    /// chosen. Writing an icon is the other direction and keeps every size it can; that path
+    /// goes through <see cref="WriteIcon"/>.
     /// </summary>
-    private bool IsMultiSizeIcon(string path, CliOptions options)
+    private static bool IsMultiSizeIcon(string path)
     {
-        if (_targetKeepsFrames && options.IconSize is null && !_targetIsIcon)
-        {
-            return false;
-        }
-
+        // An icon's frames are alternate sizes, not animation, so one is always chosen — even
+        // for a target that could hold them all. Writing them as pages produced a seven-page
+        // TIFF whose first page, and therefore whose apparent size, was 16x16.
         try
         {
             if (ImageFormats.Canonical(new MagickImageInfo(path).Format) is not (MagickFormat.Ico or MagickFormat.Cur))

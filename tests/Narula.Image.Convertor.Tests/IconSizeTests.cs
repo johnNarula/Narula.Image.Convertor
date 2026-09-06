@@ -210,6 +210,57 @@ public class IconSizeTests
         }
     }
 
+    [Theory]
+    [InlineData("webp")]
+    [InlineData("tiff")]
+    [InlineData("gif")]
+    public async Task A_multi_frame_target_still_gets_one_size_from_an_icon(string target)
+    {
+        // An icon's frames are alternate sizes, not animation. Carrying them all across produced
+        // a multi-page file whose first page — and so whose apparent size — was the 16px one.
+        using TestWorkspace workspace = new();
+        workspace.WriteMultiSizeIcon("app.ico", 16, 32, 64, 256);
+
+        ConversionResult result = await ConvertAsync(workspace, "app.ico", target);
+
+        Assert.Equal(Outcome.Converted, result.Outcome);
+
+        using MagickImageCollection written = new(workspace.InDestination("app." + target));
+        Assert.Single(written);
+        Assert.Equal(256u, written[0].Width);
+        Assert.Equal(256u, written[0].Height);
+    }
+
+    [Fact]
+    public async Task Iconsize_still_chooses_for_a_multi_frame_target()
+    {
+        using TestWorkspace workspace = new();
+        workspace.WriteMultiSizeIcon("app.ico", 16, 32, 64, 256);
+
+        ConversionResult result = await ConvertAsync(workspace, "app.ico", "webp", "-iconsize", "32");
+
+        Assert.Equal(Outcome.Converted, result.Outcome);
+
+        using MagickImageCollection written = new(workspace.InDestination("app.webp"));
+        Assert.Single(written);
+        Assert.Equal(32u, written[0].Width);
+    }
+
+    [Fact]
+    public async Task A_genuinely_animated_source_keeps_all_of_its_frames()
+    {
+        // The icon rule must not cost real animation its frames.
+        using TestWorkspace workspace = new();
+        workspace.WriteAnimatedGif("moving.gif", frames: 3);
+
+        ConversionResult result = await ConvertAsync(workspace, "moving.gif", "webp");
+
+        Assert.Equal(Outcome.Converted, result.Outcome);
+
+        using MagickImageCollection written = new(workspace.InDestination("moving.webp"));
+        Assert.Equal(3, written.Count);
+    }
+
     private static async Task<ConversionResult> ConvertAsync(
         TestWorkspace workspace, string relativePath, string target, params string[] extra)
     {

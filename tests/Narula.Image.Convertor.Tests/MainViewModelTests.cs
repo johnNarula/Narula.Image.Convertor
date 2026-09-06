@@ -410,4 +410,73 @@ public class MainViewModelTests
         int index = Array.IndexOf(args, flag);
         return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
     }
+
+    [Fact]
+    public void The_icon_row_appears_when_an_icon_is_on_either_end()
+    {
+        MainViewModel model = Model();
+
+        Assert.False(model.IconSizeApplies);
+
+        // Reading one.
+        model.Source = @"C:\iconspp.ico";
+        Assert.True(model.IconSizeApplies);
+        Assert.True(model.SourceIsIcon);
+        Assert.False(model.TargetIsIcon);
+
+        // Writing one.
+        model.Source = @"C:\photos";
+        Assert.False(model.IconSizeApplies);
+        model.Target = "ico";
+        Assert.True(model.IconSizeApplies);
+        Assert.True(model.TargetIsIcon);
+    }
+
+    [Fact]
+    public void A_folder_narrowed_to_icons_counts_as_an_icon_source()
+    {
+        MainViewModel model = Model();
+        model.Source = @"C:\icons";
+
+        Assert.False(model.IconSizeApplies);
+
+        model.SourceFilter = ".ico";
+
+        Assert.True(model.SourceIsIcon);
+        Assert.True(model.IconSizeApplies);
+    }
+
+    [Fact]
+    public void The_row_says_which_direction_it_means()
+    {
+        MainViewModel model = Model();
+
+        model.Source = @"C:\iconspp.ico";
+        model.Target = "png";
+        Assert.Equal("Size to take", model.IconSizeLabel);
+        Assert.Equal("Largest", model.IconSizeDefaultLabel);
+        Assert.Contains("largest is taken", model.IconSizeNote);
+
+        model.Target = "ico";
+        Assert.Equal("Icon sizes", model.IconSizeLabel);
+        Assert.Equal("All sizes", model.IconSizeDefaultLabel);
+        Assert.Contains("Every conventional size", model.IconSizeNote);
+    }
+
+    [Fact]
+    public void Changing_the_filter_announces_the_icon_row()
+    {
+        MainViewModel model = Model();
+        model.Source = @"C:\icons";
+
+        List<string> changed = [];
+        model.PropertyChanged += (_, e) => changed.Add(e.PropertyName ?? string.Empty);
+
+        model.SourceFilter = ".ico";
+
+        // Without these the row stays hidden until something else happens to repaint it.
+        Assert.Contains(nameof(MainViewModel.IconSizeApplies), changed);
+        Assert.Contains(nameof(MainViewModel.IconSizeLabel), changed);
+        Assert.Contains(nameof(MainViewModel.IconSizeDefaultLabel), changed);
+    }
 }

@@ -668,3 +668,30 @@ showing it — and both must quote the same path and the same wording.
 The common-format ordering moved into the engine at the same time. The window had its own
 list of everyday targets; the MCP server needed the same thing, and alphabetical order puts
 "a" — raw alpha samples — first out of 197. One list, three front ends.
+
+
+## Which rule wins for an icon's frames
+
+Two rules met and the wrong one was winning. "Keep animation when the target can hold it" and
+"reading an icon takes its largest size" are both right on their own; for an `.ico` read into
+WebP, TIFF, GIF or AVIF they contradict, and the frame rule was checked first:
+
+```csharp
+if (_targetKeepsFrames && options.IconSize is null && !_targetIsIcon)
+    return false;   // don't pick a size, keep every frame
+```
+
+The result was a seven-page TIFF whose first page — and therefore whose reported size — was
+16x16. Anything opening it saw a thumbnail. It had been shipping that way since icons were
+added, and no test caught it because every icon test used a single-frame target.
+
+The precedence is now the other way round: an `.ico` or `.cur` source always yields one image,
+because its frames are alternate sizes rather than moments in time. Animation preservation is
+untouched for sources that really are animated, which is what the new tests pin down — one per
+multi-frame target, plus an animated GIF that must still arrive with all three frames.
+
+The window gained the matching control. It already appeared when the target was an icon; it now
+appears when the source is one as well, including a folder narrowed to `.ico` by the file
+filter, and its wording follows the direction: *Size to take* and *Largest* reading, *Icon
+sizes* and *All sizes* writing. One control that means two different things has to say which
+one it means.
