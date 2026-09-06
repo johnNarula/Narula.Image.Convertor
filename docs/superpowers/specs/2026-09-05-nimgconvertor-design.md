@@ -463,6 +463,16 @@ it as a report; the window renders it as a summary and a list of failures.
 Progress reaches both through `IProgressSink`: the engine counts, a sink presents. The console
 implementation redraws a throttled line; the window updates a progress bar.
 
+### Linux prerequisites
+
+The engine runs on a bare Linux install with nothing added — verified on WSL2 Ubuntu 24.04,
+converting real HEIC photos. The window does not: Avalonia's X11 backend needs `libICE.so.6`
+and `libSM.so.6`, which a desktop distribution ships but a server or WSL image does not
+(`apt install libice6 libsm6`). Everything else Avalonia wants was already present.
+
+This is a packaging fact rather than a defect, but it is the difference between "builds for
+Linux" and "runs on Linux", and only launching it on a real one surfaces it.
+
 ### Structure
 
 Three projects, because an executable cannot reference another executable:

@@ -210,6 +210,18 @@ Add the exact executable you run. A rebuild to a new location needs adding again
 
 The tool prints these steps, and the path to add, whenever destination creation fails.
 
+### Running the window on Linux
+
+The engine needs nothing beyond the binary, but `img2imgUI` needs the X11 client libraries.
+A desktop distribution has them; a server or WSL install usually does not:
+
+```bash
+sudo apt install libice6 libsm6
+```
+
+Verified on WSL2 Ubuntu 24.04: the command line converts with no extra packages at all, and
+the window needs exactly those two.
+
 ## Formats
 
 The decoder is [Magick.NET](https://github.com/dlemstra/Magick.NET) (ImageMagick), which
@@ -288,7 +300,8 @@ Moving to Magick.NET removed that constraint entirely.
 | What | Where | Notes |
 |---|---|---|
 | **v1.0.0 — ImageSharp** | tag `v1.0.0`, branch `v1.0-imagesharp` | 23 MB exe, 9 formats, no HEIC/AVIF/RAW |
-| v2.0.0 — Magick.NET | tag `v2.0.0`, `master` | 26 MB exe (97 MB standalone), 261 read / 197 write, incl. HEIC/AVIF/RAW/PSD |
+| v2.1.0 — window + icons + settings | tag `v2.1.0`, `master` | `img2img.exe` 26 MB + `img2imgUI.exe` 55 MB |
+| v2.0.0 — Magick.NET | tag `v2.0.0` | 261 read / 197 write, incl. HEIC/AVIF/RAW/PSD |
 
 Measured on 204 mixed files (154 MB) converting to JPEG: v1 took 8.5 s, v2 took 13.2 s.
 v2 is about 1.5x slower and 4x larger; it reads formats v1 cannot open at all.
