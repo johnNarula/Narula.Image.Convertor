@@ -11,16 +11,29 @@ internal sealed record ScanResult(IReadOnlyList<WorkItem> Items, IReadOnlyList<C
 internal static class FileScanner
 {
     /// <summary>
-    /// Extensions we are willing to pick up. HEIC/HEIF/AVIF are here on purpose even though the
-    /// current decoder cannot read them — the user should see them fail rather than silently
-    /// vanish from the destination.
+    /// Extensions a folder scan will pick up. ImageMagick reads far more than this, including
+    /// text-ish and document formats (txt, html, json, pdf) that nobody wants swept up by
+    /// "convert this folder", so the scan uses a deliberate list of picture extensions instead of
+    /// everything the library can decode. Anything outside it is still reachable by naming the
+    /// file or globbing its extension, which <see cref="CliOptions.SourceExtensionIsExplicit"/>
+    /// treats as the user overriding this list on purpose.
     /// </summary>
     private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".jpg", ".jpeg", ".jpe", ".jfif",
-        ".png", ".webp", ".bmp", ".gif",
-        ".tif", ".tiff", ".tga", ".pbm", ".qoi",
-        ".heic", ".heif", ".avif",
+        // Everyday raster
+        ".jpg", ".jpeg", ".jpe", ".jfif", ".jif", ".png", ".apng", ".gif", ".bmp", ".dib",
+        ".webp", ".tif", ".tiff", ".tga", ".targa", ".ico", ".cur", ".pcx", ".qoi",
+        // Modern codecs
+        ".heic", ".heif", ".hif", ".avif", ".jxl", ".jp2", ".j2k", ".jpf", ".jpx", ".jpm",
+        // Layered and vector
+        ".psd", ".psb", ".xcf", ".svg", ".svgz", ".ai", ".eps", ".epsf",
+        // Camera raw
+        ".cr2", ".cr3", ".crw", ".nef", ".nrw", ".arw", ".srf", ".sr2", ".dng", ".orf",
+        ".raf", ".rw2", ".pef", ".srw", ".x3f", ".erf", ".kdc", ".dcr", ".mrw", ".3fr",
+        // Netpbm and the long tail
+        ".ppm", ".pgm", ".pbm", ".pnm", ".pam", ".pfm", ".xpm", ".xbm",
+        ".dds", ".exr", ".hdr", ".pict", ".pct", ".sgi", ".rgb", ".ras", ".sun",
+        ".wbmp", ".fits", ".fts", ".miff", ".mng", ".jng", ".jbig", ".jbg",
     };
 
     private static readonly StringComparison PathComparison =
@@ -56,7 +69,8 @@ internal static class FileScanner
 
         foreach (string file in Directory.EnumerateFiles(sourceRoot, "*", enumeration))
         {
-            if (!ImageExtensions.Contains(Path.GetExtension(file)))
+            // A named extension is the user overriding the default list, so honour it.
+            if (!options.SourceExtensionIsExplicit && !ImageExtensions.Contains(Path.GetExtension(file)))
             {
                 continue;
             }

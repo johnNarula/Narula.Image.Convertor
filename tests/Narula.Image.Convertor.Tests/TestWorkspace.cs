@@ -1,11 +1,4 @@
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Gif;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.Metadata.Profiles.Exif;
-using SixLabors.ImageSharp.PixelFormats;
-
-using ISImage = SixLabors.ImageSharp.Image;
+using ImageMagick;
 
 using Narula.Image.Convertor;
 
@@ -17,6 +10,9 @@ namespace ImageConvertor.Tests;
 /// </summary>
 internal sealed class TestWorkspace : IDisposable
 {
+    public const int Width = 64;
+    public const int Height = 48;
+
     public string Root { get; }
     public string Source => Path.Combine(Root, "source");
     public string Destination => Path.Combine(Root, "destination");
@@ -36,56 +32,72 @@ internal sealed class TestWorkspace : IDisposable
 
     public string InDestination(params string[] parts) => Path.Combine([Destination, .. parts]);
 
-    public string WritePng(string relativePath, int width = 64, int height = 48)
+    public string WritePng(string relativePath)
     {
         string path = InSource(relativePath);
-        using Image<Rgba32> image = Checkerboard(width, height, transparentRightHalf: false);
-        image.Save(path, new PngEncoder());
+        using MagickImage image = Checkerboard(transparentRightHalf: false);
+        image.Write(path, MagickFormat.Png);
         return path;
     }
 
     /// <summary>Left half opaque, right half fully transparent — enough to tell whether flattening happened.</summary>
-    public string WriteTransparentPng(string relativePath, int width = 64, int height = 48)
+    public string WriteTransparentPng(string relativePath)
     {
         string path = InSource(relativePath);
-        using Image<Rgba32> image = Checkerboard(width, height, transparentRightHalf: true);
-        image.Save(path, new PngEncoder { ColorType = PngColorType.RgbWithAlpha });
+        using MagickImage image = Checkerboard(transparentRightHalf: true);
+        image.Write(path, MagickFormat.Png32);
         return path;
     }
 
-    public string WriteJpeg(string relativePath, int quality, int width = 64, int height = 48)
+    public string WriteJpeg(string relativePath, int quality)
     {
         string path = InSource(relativePath);
-        using Image<Rgba32> image = Checkerboard(width, height, transparentRightHalf: false);
-        image.Save(path, new JpegEncoder { Quality = quality });
+        using MagickImage image = Checkerboard(transparentRightHalf: false);
+        image.Quality = (uint)quality;
+        image.Write(path, MagickFormat.Jpeg);
         return path;
     }
 
-    public string WriteRotatedJpeg(string relativePath, ushort orientation, int quality = 85)
+    /// <summary>A JPEG carrying an EXIF orientation tag, so uprighting has something to correct.</summary>
+    public string WriteRotatedJpeg(string relativePath, OrientationType orientation, int quality = 85)
     {
         string path = InSource(relativePath);
+        using MagickImage image = Checkerboard(transparentRightHalf: false);
+        image.Quality = (uint)quality;
 
-        using Image<Rgba32> image = Checkerboard(64, 48, transparentRightHalf: false);
-        image.Metadata.ExifProfile = new ExifProfile();
-        image.Metadata.ExifProfile.SetValue(ExifTag.Orientation, orientation);
+        // Setting Orientation alone does not create a profile to store it in, and a JPEG with no
+        // EXIF block has no tag for the converter to find.
+        ExifProfile exif = new();
+        exif.SetValue(ExifTag.Orientation, (ushort)orientation);
+        image.SetProfile(exif);
+        image.Orientation = orientation;
 
-        image.Save(path, new JpegEncoder { Quality = quality });
+        image.Write(path, MagickFormat.Jpeg);
         return path;
     }
 
     public string WriteAnimatedGif(string relativePath, int frames = 3)
     {
         string path = InSource(relativePath);
+        using MagickImageCollection collection = [];
 
-        using Image<Rgba32> image = new(32, 32, new Rgba32(220, 40, 40));
-
-        for (int i = 1; i < frames; i++)
+        for (int i = 0; i < frames; i++)
         {
-            using Image<Rgba32> extra = new(32, 32, new Rgba32(40, 40, 220));
-            image.Frames.AddFrame(extra.Frames.RootFrame);
+            MagickImage frame = new(i % 2 == 0 ? MagickColors.Red : MagickColors.Blue, 32, 32);
+            frame.AnimationDelay = 10;
+            collection.Add(frame);
         }
 
-        image.Save(path, new GifEncoder());
+        collection.Write(path, MagickFormat.Gif);
+        return path;
+    }
+
+    /// <summary>A JPEG at an arbitrary size, for exercising per-format dimension limits.</summary>
+    public string WriteLargeJpeg(string relativePath, int width, int height)
+    {
+        string path = InSource(relativePath);
+        using MagickImage image = new(MagickColors.CornflowerBlue, (uint)width, (uint)height);
+        image.Write(path, MagickFormat.Jpeg);
         return path;
     }
 
@@ -104,32 +116,48 @@ internal sealed class TestWorkspace : IDisposable
         return path;
     }
 
-    private static Image<Rgba32> Checkerboard(int width, int height, bool transparentRightHalf)
+    private static MagickImage Checkerboard(bool transparentRightHalf)
     {
-        Image<Rgba32> image = new(width, height);
+        byte[] pixels = new byte[Width * Height * 4];
+        int i = 0;
 
-        image.ProcessPixelRows(accessor =>
+        for (int y = 0; y < Height; y++)
         {
-            for (int y = 0; y < accessor.Height; y++)
+            for (int x = 0; x < Width; x++)
             {
-                Span<Rgba32> row = accessor.GetRowSpan(y);
-
-                for (int x = 0; x < row.Length; x++)
-                {
-                    bool light = ((x / 8) + (y / 8)) % 2 == 0;
-                    byte alpha = transparentRightHalf && x >= width / 2 ? (byte)0 : (byte)255;
-
-                    row[x] = light
-                        ? new Rgba32(220, 180, 40, alpha)
-                        : new Rgba32(60, 90, 200, alpha);
-                }
+                bool light = ((x / 8) + (y / 8)) % 2 == 0;
+                pixels[i++] = light ? (byte)220 : (byte)60;
+                pixels[i++] = light ? (byte)180 : (byte)90;
+                pixels[i++] = light ? (byte)40 : (byte)200;
+                pixels[i++] = transparentRightHalf && x >= Width / 2 ? (byte)0 : (byte)255;
             }
-        });
+        }
 
-        return image;
+        MagickReadSettings settings = new()
+        {
+            Format = MagickFormat.Rgba,
+            Width = Width,
+            Height = Height,
+            Depth = 8,
+        };
+
+        return new MagickImage(pixels, settings);
     }
 
-    public static ISImage Load(string path) => ISImage.Load(path);
+    /// <summary>Reads one pixel's colour, for asserting on flattening and matte colours.</summary>
+    public static IMagickColor<byte> PixelAt(string path, int x, int y)
+    {
+        using MagickImage image = new(path);
+        return image.GetPixels().GetPixel(x, y).ToColor()!;
+    }
+
+    public static int FrameCount(string path)
+    {
+        using MagickImageCollection collection = new(path);
+        return collection.Count;
+    }
+
+    public static MagickFormat FormatOf(string path) => new MagickImageInfo(path).Format;
 
     public void Dispose()
     {

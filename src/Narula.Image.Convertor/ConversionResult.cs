@@ -22,8 +22,8 @@ internal readonly record struct ConversionResult(
     long BytesIn,
     long BytesOut)
 {
-    public static ConversionResult Converted(WorkItem item, long bytesIn, long bytesOut) =>
-        new(item, Outcome.Converted, null, bytesIn, bytesOut);
+    public static ConversionResult Converted(WorkItem item, long bytesIn, long bytesOut, string? reason = null) =>
+        new(item, Outcome.Converted, reason, bytesIn, bytesOut);
 
     public static ConversionResult Copied(WorkItem item, long bytes, string reason) =>
         new(item, Outcome.Copied, reason, bytes, bytes);

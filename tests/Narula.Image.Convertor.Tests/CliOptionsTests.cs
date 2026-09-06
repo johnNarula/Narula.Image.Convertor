@@ -1,5 +1,4 @@
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using ImageMagick;
 
 using Narula.Image.Convertor;
 
@@ -26,7 +25,7 @@ public class CliOptionsTests
         Assert.False(options.PreserveMetadata);
         Assert.Equal(3, options.Parallelism);
         Assert.True(options.StopOnError);
-        Assert.Equal(new Rgba32(0x10, 0x20, 0x30), options.Background.ToPixel<Rgba32>());
+        Assert.Equal(new MagickColor("#102030"), options.Background);
     }
 
     [Fact]
@@ -41,7 +40,7 @@ public class CliOptionsTests
         Assert.True(options.PreserveMetadata);
         Assert.False(options.StopOnError);
         Assert.Equal(Environment.ProcessorCount, options.Parallelism);
-        Assert.Equal(Color.White, options.Background);
+        Assert.Equal(new MagickColor(MagickColors.White), options.Background);
     }
 
     [Fact]
@@ -175,12 +174,50 @@ public class CliOptionsTests
     }
 
     [Fact]
-    public void Rejects_unsupported_target_type()
+    public void Rejects_a_format_that_can_be_read_but_not_written()
     {
+        // HEIC decodes fine but nothing here can encode it, so it is a valid source, not a target.
         ParseOutcome outcome = CliOptions.Parse(["-s", "in", "-d", "out", "-t", "heic"]);
 
         Assert.Null(outcome.Options);
-        Assert.Contains("unsupported target type", outcome.Error);
+        Assert.Contains("nothing can write", outcome.Error);
+    }
+
+    [Fact]
+    public void Rejects_a_format_nothing_has_heard_of()
+    {
+        ParseOutcome outcome = CliOptions.Parse(["-s", "in", "-d", "out", "-t", "squeeb"]);
+
+        Assert.Null(outcome.Options);
+        Assert.Contains("nothing can write", outcome.Error);
+    }
+
+    [Theory]
+    [InlineData("avif")]
+    [InlineData("jxl")]
+    [InlineData("ico")]
+    [InlineData("pdf")]
+    [InlineData("psd")]
+    public void Accepts_the_wider_target_range(string target)
+    {
+        CliOptions options = Parse("-s", "in", "-d", "out", "-t", target);
+
+        Assert.Equal(target, options.TargetType);
+    }
+
+    [Fact]
+    public void Formats_listing_is_its_own_outcome()
+    {
+        Assert.True(CliOptions.Parse(["-formats"]).FormatsRequested);
+        Assert.True(CliOptions.Parse(["-s", "in", "-formats"]).FormatsRequested);
+    }
+
+    [Fact]
+    public void A_named_extension_counts_as_explicit_intent()
+    {
+        Assert.True(Parse("-s", Path.Combine("in", "*.pdf"), "-d", "out", "-t", "jpg").SourceExtensionIsExplicit);
+        Assert.False(Parse("-s", Path.Combine("in", "shot-*"), "-d", "out", "-t", "jpg").SourceExtensionIsExplicit);
+        Assert.False(Parse("-s", "in", "-d", "out", "-t", "jpg").SourceExtensionIsExplicit);
     }
 
     [Fact]
@@ -214,10 +251,20 @@ public class CliOptionsTests
     [Fact]
     public void Rejects_a_malformed_background_colour()
     {
-        ParseOutcome outcome = CliOptions.Parse(["-s", "in", "-d", "out", "-t", "jpg", "-bg", "chartreuse"]);
+        ParseOutcome outcome = CliOptions.Parse(["-s", "in", "-d", "out", "-t", "jpg", "-bg", "not-a-colour"]);
 
         Assert.Null(outcome.Options);
         Assert.Contains("-bg", outcome.Error);
+    }
+
+    [Theory]
+    [InlineData("#FF0000")]
+    [InlineData("chartreuse")]
+    [InlineData("rgb(255,0,0)")]
+    public void Accepts_hex_and_named_colours(string colour)
+    {
+        // ImageMagick understands colour names, so -bg is no longer hex-only.
+        Assert.NotNull(CliOptions.Parse(["-s", "in", "-d", "out", "-t", "jpg", "-bg", colour]).Options);
     }
 
     [Fact]
