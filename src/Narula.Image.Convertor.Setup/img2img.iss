@@ -14,6 +14,10 @@
   #define StageDir "obj\stage"
 #endif
 
+; Must stay identical to AppId below, which cannot be written as a define because Inno expands
+; constants in that field and so needs the doubled brace.
+#define AppGuid "{A6D1F2C4-8E3B-4A5D-9C71-2F0B6E4D8A31}"
+
 #define AppName "Image to Image Convertor"
 #define AppShortName "img2img"
 #define AppPublisher "9th Act, LLC"
@@ -36,7 +40,9 @@ AppSupportURL={#AppUrl}
 ; Per-user by default, which needs no administrator and no prompt. The dialog offers an
 ; all-users install to anyone who wants one.
 PrivilegesRequired=lowest
-PrivilegesRequiredOverridesAllowed=dialog
+; dialog: ask the person. commandline: let /CURRENTUSER and /ALLUSERS decide, which a scripted
+; or silent install needs, since it never sees the dialog.
+PrivilegesRequiredOverridesAllowed=dialog commandline
 DefaultDirName={autopf}\{#AppShortName}
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
@@ -47,7 +53,12 @@ UninstallDisplayIcon={app}\{#WindowExe}
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
+; The application's own icon throughout: on setup.exe itself, on the panel of the last page,
+; and in the corner of every other one. Both bitmaps are drawn from icon.ico by
+; make-wizard-images.ps1 beside this file, so they cannot disagree with the shipped icon.
 SetupIconFile=..\Narula.Image.Convertor\icon.ico
+WizardImageFile=wizard-large.bmp
+WizardSmallImageFile=wizard-small.bmp
 WizardStyle=modern
 Compression=lzma2/max
 SolidCompression=yes
@@ -142,12 +153,58 @@ begin
   Result := True;
 end;
 
-{ Fetched here rather than from the wizard, because PrepareToInstall runs for a silent install
-  too. Doing it on the Ready page would have left /VERYSILENT quietly installing a program that
-  cannot start. }
+{ Per-user and all-users installs keep separate uninstall records, so without this check both
+  can sit on one machine at once: two copies, two PATH entries, two right-click menus, and no
+  way to tell which one a shortcut points at. Returns the uninstaller of a copy installed in
+  the mode this run is NOT using. }
+function OtherModeUninstaller(var Where: String): String;
+var
+  Key: String;
+  Root: Integer;
+begin
+  Key := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#AppGuid}_is1';
+
+  if IsAdminInstallMode then
+  begin
+    Root := HKEY_CURRENT_USER;
+    Where := 'just for you';
+  end
+  else
+  begin
+    Root := HKEY_LOCAL_MACHINE;
+    Where := 'for all users';
+  end;
+
+  if not RegQueryStringValue(Root, Key, 'UninstallString', Result) then
+    Result := '';
+end;
+
+{ Both of these run here rather than from the wizard, because PrepareToInstall runs for a
+  silent install too. On the Ready page instead, /VERYSILENT would quietly install a program
+  that cannot start, beside a copy of itself. }
 function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Uninstaller, Where: String;
+  ResultCode: Integer;
 begin
   Result := '';
+
+  Uninstaller := OtherModeUninstaller(Where);
+
+  if Uninstaller <> '' then
+  begin
+    { A silent install takes the default and removes it: finishing with two copies is never
+      what was wanted, and there is nobody there to be asked. }
+    if SuppressibleMsgBox(
+         '{#AppName} is already installed ' + Where + '.' + #13#10#13#10 +
+         'Two copies on one machine means two entries in Add/Remove Programs and two ' +
+         'right-click menus. Remove the other one first?',
+         mbConfirmation, MB_YESNO, IDYES) = IDYES then
+    begin
+      Exec(RemoveQuotes(Uninstaller), '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART',
+           '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    end;
+  end;
 
   if not NeedsDotNet then
     Exit;
