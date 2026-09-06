@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Narula.Image.Convertor/Narula.Image.Convertor.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Narula.Image.Convertor.Tests/Narula.Image.Convertor.Tests.csproj" />
+  </Folder>
+</Solution>
