@@ -178,6 +178,42 @@ that **fails Release builds** without a key from Six Labors, even for users who 
 for the free grant. If a key is obtained, upgrading is a package bump plus one call site
 (`Color.TryParseHex` gained a `ColorHexFormat` argument in 4.x).
 
+## Versions
+
+| What | Where | Notes |
+|---|---|---|
+| **v1.0.0 — ImageSharp** | tag `v1.0.0`, branch `v1.0-imagesharp` | 23 MB exe, 9 formats, no HEIC/AVIF/RAW |
+| v2 — Magick.NET | branch `v2-magick` | ~76 MB exe, 261 formats incl. HEIC/AVIF/RAW/PSD |
+
+### Going back to v1.0
+
+Everything below leaves v1.0 exactly as it shipped; the tag is immutable and the branch is
+never force-pushed.
+
+Get the v1.0 source:
+
+```bash
+git checkout v1.0.0
+```
+
+Or work on it with somewhere to commit:
+
+```bash
+git checkout v1.0-imagesharp
+```
+
+Rebuild the v1.0 executable from either of those:
+
+```bash
+dotnet publish src/Narula.Image.Convertor -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true -o publish/win-x64
+```
+
+Return to the latest work:
+
+```bash
+git checkout master
+```
+
 ## Design
 
 [docs/superpowers/specs/2026-09-05-nimgconvertor-design.md](docs/superpowers/specs/2026-09-05-nimgconvertor-design.md)
