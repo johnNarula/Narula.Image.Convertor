@@ -4,8 +4,9 @@
         x:Class="Narula.Image.Convertor.UI.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="Image to Image Convertor"
-        Width="760" Height="780"
-        MinWidth="660" MinHeight="600"
+        Width="760" Height="900"
+        MinWidth="660" MinHeight="640"
+        WindowStartupLocation="CenterScreen"
         RequestedThemeVariant="Light"
         Background="#FBFCFE">
 
@@ -47,21 +48,57 @@
       <Setter Property="Background" Value="#D9D8EC" />
       <Setter Property="Foreground" Value="#8E8DA8" />
     </Style>
+    <!--
+      The drop-down chevron. Two things here are load-bearing rather than cosmetic.
+      VerticalContentAlignment must be Center: content alignment defaults to Stretch, which
+      stretches the glyph's own text block and leaves the glyph drawn at its top edge.
+      Focusable must be false: AutoCompleteBox closes its drop-down on lost focus, so a
+      focusable button inside the box would shut the list in the same click that opened it.
+    -->
     <Style Selector="Button.chevron">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="Padding" Value="6,0" />
+      <Setter Property="Padding" Value="8,0" />
       <Setter Property="Margin" Value="0" />
+      <Setter Property="Focusable" Value="False" />
       <Setter Property="VerticalAlignment" Value="Stretch" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
       <Setter Property="Content" Value="&#xE70D;" />
       <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
       <Setter Property="FontSize" Value="10" />
       <Setter Property="Foreground" Value="#5B5B78" />
     </Style>
+    <Style Selector="Button.chevron /template/ ContentPresenter">
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.chevron:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="#3B3B58" />
+    </Style>
+    <Style Selector="Button.chevron:pressed /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="#4F46E5" />
+    </Style>
+    <Style Selector="Button.quiet">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="8,3" />
+      <Setter Property="FontSize" Value="11.5" />
+      <Setter Property="Foreground" Value="#6B6B86" />
+    </Style>
+    <Style Selector="Button.quiet:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#ECECF6" />
+      <Setter Property="Foreground" Value="#3B3B58" />
+    </Style>
   </Window.Styles>
 
   <ScrollViewer Padding="18">
     <StackPanel>
+
+      <!-- About sits outside the setup panel so it stays reachable while a conversion runs. -->
+      <Button x:Name="AboutButton" Content="About" Classes="quiet"
+              HorizontalAlignment="Right" Margin="0,0,2,4" />
 
       <StackPanel x:Name="SetupPanel" IsEnabled="{Binding IsIdle}">
 
@@ -83,11 +120,12 @@
 
           <TextBlock Classes="label" Text="ONLY THESE FILES" Margin="0,2,0,6" />
           <AutoCompleteBox x:Name="FilterBox" Width="260"
+                           HorizontalAlignment="Left"
                            ItemsSource="{Binding SourceFilters}"
                            Text="{Binding SourceFilter}"
                            FilterMode="Contains"
                            MinimumPrefixLength="0"
-                           IsTextCompletionEnabled="True">
+                           IsTextCompletionEnabled="False">
             <AutoCompleteBox.InnerRightContent>
               <Button x:Name="FilterDropDown" Classes="chevron" />
             </AutoCompleteBox.InnerRightContent>
@@ -95,7 +133,13 @@
         </StackPanel>
       </Border>
 
-      <!-- Convert to. Typing filters the list, which matters at nearly two hundred formats. -->
+      <!--
+        Convert to. Typing filters the list, which matters at nearly two hundred formats.
+        IsTextCompletionEnabled is off deliberately on both of these boxes: AutoCompleteBox
+        refuses to populate its list while text is selected and completion is on, and focusing
+        a box selects all of its text, so with completion on the chevron could never open
+        anything. Inline completion is not worth losing the drop-down over.
+      -->
       <Border Classes="card" Background="#F6F0FF" BorderBrush="#E2D5FB">
         <StackPanel>
           <TextBlock Classes="label" Text="CONVERT TO" />
@@ -105,8 +149,8 @@
                              Text="{Binding Target}"
                              FilterMode="Contains"
                              MinimumPrefixLength="0"
-                             IsTextCompletionEnabled="True"
-                             Watermark="type to filter">
+                             IsTextCompletionEnabled="False"
+                             PlaceholderText="type to filter">
               <AutoCompleteBox.InnerRightContent>
                 <Button x:Name="TargetDropDown" Classes="chevron" />
               </AutoCompleteBox.InnerRightContent>
@@ -135,7 +179,7 @@
       <Border Classes="card" Background="#EDF9F2" BorderBrush="#CEEBDC">
         <StackPanel>
           <TextBlock Classes="label" Text="DESTINATION" />
-          <TextBlock Text="{Binding DestinationHint}" TextWrapping="Wrap" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding DestinationHint}" TextWrapping="Wrap" />
           <TextBlock Classes="hint" Text="{Binding DestinationNote}" Margin="0,3,0,10" />
           <StackPanel Orientation="Horizontal" Spacing="8">
             <Button x:Name="BrowseDestination" Content="Choose folder..." />

@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 using ImageMagick;
 
@@ -51,11 +50,38 @@ internal static class Defaults
 
     public static ToolDefaults Current { get; private set; } = ToolDefaults.BuiltIn;
 
+    /// <summary>
+    /// Your own settings, which survive reinstalling and work when the program itself lives
+    /// somewhere you cannot write to, such as Program Files.
+    /// </summary>
+    public static string UserSettingsPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "9thAct",
+        "img2img",
+        FileName);
+
     /// <summary>Beside the executable, so a copied tool carries its settings with it.</summary>
-    public static string SettingsPath =>
+    public static string InstalledSettingsPath =>
         Path.Combine(Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory, FileName);
 
-    public static void Initialise(TextWriter warnings) => Current = Load(SettingsPath, warnings);
+    /// <summary>
+    /// Where settings are looked for, in order. Yours wins over the installed copy, so an
+    /// installer can lay down a default without ever overwriting a preference you set.
+    /// </summary>
+    public static IEnumerable<string> SearchPaths
+    {
+        get
+        {
+            yield return UserSettingsPath;
+            yield return InstalledSettingsPath;
+        }
+    }
+
+    /// <summary>The file actually in use, or null when neither exists and the built-ins apply.</summary>
+    public static string? SettingsPath => SearchPaths.FirstOrDefault(File.Exists);
+
+    public static void Initialise(TextWriter warnings) =>
+        Current = SettingsPath is { } path ? Load(path, warnings) : ToolDefaults.BuiltIn;
 
     /// <summary>
     /// Reads a settings file, falling back to the built-in value for anything missing or
@@ -77,7 +103,7 @@ internal static class Defaults
         }
         catch (Exception exception) when (exception is JsonException or IOException or UnauthorizedAccessException)
         {
-            warnings.WriteLine($"nImgConvertor: ignoring {path}: {exception.Message}");
+            warnings.WriteLine($"img2img: ignoring {path}: {exception.Message}");
             return ToolDefaults.BuiltIn;
         }
 
@@ -96,7 +122,7 @@ internal static class Defaults
             }
             else
             {
-                warnings.WriteLine($"nImgConvertor: ignoring quality {quality} in {FileName}: must be 1 to 100");
+                warnings.WriteLine($"img2img: ignoring quality {quality} in {FileName}: must be 1 to 100");
             }
         }
 
@@ -108,7 +134,7 @@ internal static class Defaults
             }
             else
             {
-                warnings.WriteLine($"nImgConvertor: ignoring parallelism {parallelism} in {FileName}: must be 0 or more");
+                warnings.WriteLine($"img2img: ignoring parallelism {parallelism} in {FileName}: must be 0 or more");
             }
         }
 
@@ -121,7 +147,7 @@ internal static class Defaults
             }
             catch (Exception exception) when (exception is ArgumentException or MagickException)
             {
-                warnings.WriteLine($"nImgConvertor: ignoring background '{background}' in {FileName}: not a colour");
+                warnings.WriteLine($"img2img: ignoring background '{background}' in {FileName}: not a colour");
             }
         }
 
@@ -133,7 +159,7 @@ internal static class Defaults
             }
             else
             {
-                warnings.WriteLine($"nImgConvertor: ignoring destinationFolderFormat in {FileName}: it must contain {{0}}");
+                warnings.WriteLine($"img2img: ignoring destinationFolderFormat in {FileName}: it must contain {{0}}");
             }
         }
 
@@ -145,7 +171,7 @@ internal static class Defaults
             }
             else
             {
-                warnings.WriteLine($"nImgConvertor: ignoring iconSizes in {FileName}: every size must be 1 to 256");
+                warnings.WriteLine($"img2img: ignoring iconSizes in {FileName}: every size must be 1 to 256");
             }
         }
 

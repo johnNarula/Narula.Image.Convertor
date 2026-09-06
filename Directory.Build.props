@@ -1,0 +1,33 @@
+<Project>
+
+  <!--
+    Shared identity for every project in the solution. It lives here because it drifted when it
+    did not: the engine once shipped as 2.0.0 while the two executables beside it said 2.1.0.
+
+    Versions are major.minor.YY.MMDD, dated at build time, so a build always says when it was
+    made. Override BuildYear and BuildDay to reproduce an older number:
+
+        dotnet build -p:BuildYear=26 -p:BuildDay=0906
+
+    Note that the .NET assembly version drops the leading zero of a month (1.0.26.0906 becomes
+    1.0.26.906 in file properties); the informational version keeps the padded form, and that is
+    the one the About box and -h show.
+  -->
+  <PropertyGroup>
+    <VersionMajor>1</VersionMajor>
+    <VersionMinor>0</VersionMinor>
+    <BuildYear Condition="'$(BuildYear)' == ''">$([System.DateTime]::Now.ToString("yy"))</BuildYear>
+    <BuildDay Condition="'$(BuildDay)' == ''">$([System.DateTime]::Now.ToString("MMdd"))</BuildDay>
+    <VersionPrefix>$(VersionMajor).$(VersionMinor).$(BuildYear).$(BuildDay)</VersionPrefix>
+    <InformationalVersion>$(VersionMajor).$(VersionMinor).$(BuildYear).$(BuildDay)</InformationalVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Product>Image to Image Convertor</Product>
+    <Title>Image to Image Convertor</Title>
+    <Authors>John Narula</Authors>
+    <Company>9thAct LLC</Company>
+    <Copyright>2026 Copyright © 9th Act, LLC</Copyright>
+  </PropertyGroup>
+
+</Project>

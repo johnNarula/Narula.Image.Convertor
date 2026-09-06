@@ -1,0 +1,75 @@
+<Project Sdk="Microsoft.Build.NoTargets/3.7.56">
+
+  <!--
+    Builds the Windows installer. NoTargets because there is no code here: the project's whole
+    job is to publish the two executables into one folder and hand that folder to Inno Setup.
+
+    It is deliberately not wired into a normal build, so "dotnet build" stays fast and works on
+    a machine without Inno Setup. Build it on purpose:
+
+        dotnet build src/Narula.Image.Convertor.Setup -t:Installer
+
+    Inno Setup 6.3 or newer is required, and is not something this repository can install:
+
+        winget install JRSoftware.InnoSetup
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <StageDir>$(MSBuildProjectDirectory)\obj\stage\</StageDir>
+    <InstallerOutputDir>$(MSBuildProjectDirectory)\..\..\publish\installer\</InstallerOutputDir>
+    <InstallerConfiguration Condition="'$(InstallerConfiguration)' == ''">Release</InstallerConfiguration>
+    <!-- Publishing to a single file has to name the runtime it is building for. -->
+    <InstallerRuntime Condition="'$(InstallerRuntime)' == ''">win-x64</InstallerRuntime>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="img2img.iss" />
+    <None Include="settings.default.json" />
+    <None Include="README.md" />
+  </ItemGroup>
+
+  <!-- The usual install paths, newest first. Override with -p:IsccPath=... for anywhere else. -->
+  <PropertyGroup>
+    <IsccPath Condition="'$(IsccPath)' == '' And Exists('$(MSBuildProgramFiles32)\Inno Setup 6\ISCC.exe')">$(MSBuildProgramFiles32)\Inno Setup 6\ISCC.exe</IsccPath>
+    <IsccPath Condition="'$(IsccPath)' == '' And Exists('$(ProgramW6432)\Inno Setup 6\ISCC.exe')">$(ProgramW6432)\Inno Setup 6\ISCC.exe</IsccPath>
+  </PropertyGroup>
+
+  <Target Name="StageBinaries">
+    <RemoveDir Directories="$(StageDir)" />
+
+    <!--
+      Both executables publish into the same folder, which is also how they must be installed:
+      img2img finds img2imgUI by looking beside itself.
+    -->
+    <MSBuild Projects="..\Narula.Image.Convertor.Cli\Narula.Image.Convertor.Cli.csproj"
+             Targets="Publish"
+             Properties="Configuration=$(InstallerConfiguration);RuntimeIdentifier=$(InstallerRuntime);PublishDir=$(StageDir)" />
+
+    <MSBuild Projects="..\Narula.Image.Convertor.UI\Narula.Image.Convertor.UI.csproj"
+             Targets="Publish"
+             Properties="Configuration=$(InstallerConfiguration);RuntimeIdentifier=$(InstallerRuntime);PublishDir=$(StageDir)" />
+
+    <ItemGroup>
+      <Staged Include="$(StageDir)*.exe" />
+    </ItemGroup>
+
+    <Error Condition="'@(Staged->Count())' != '2'"
+           Text="Expected img2img.exe and img2imgUI.exe in $(StageDir), found @(Staged->Count())." />
+  </Target>
+
+  <Target Name="Installer" DependsOnTargets="StageBinaries">
+    <Error Condition="'$(IsccPath)' == ''"
+           Text="Inno Setup 6.3+ was not found. Install it with 'winget install JRSoftware.InnoSetup', or pass -p:IsccPath=&quot;C:\path\to\ISCC.exe&quot;." />
+
+    <MakeDir Directories="$(InstallerOutputDir)" />
+
+    <Exec Command="&quot;$(IsccPath)&quot; /Qp /DAppVersion=$(VersionPrefix) /DStageDir=&quot;$(StageDir.TrimEnd('\'))&quot; /O&quot;$(InstallerOutputDir.TrimEnd('\'))&quot; &quot;$(MSBuildProjectDirectory)\img2img.iss&quot;"
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+
+    <Message Importance="high"
+             Text="Installer written to $(InstallerOutputDir)img2img-setup-$(VersionPrefix).exe" />
+  </Target>
+
+</Project>

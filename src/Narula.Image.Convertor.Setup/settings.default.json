@@ -1,0 +1,31 @@
+{
+  // Defaults for img2img and img2imgUI. Every field is optional: delete a line and the
+  // built-in value applies. Comments and trailing commas are allowed.
+  //
+  // Your own copy at %AppData%\9thAct\img2img\settings.json wins over this file, which is
+  // where to put preferences you want to survive reinstalling.
+
+  // Encoder quality, 1 to 100, for formats that record one.
+  "quality": 100,
+
+  // Overwrite files already in the destination.
+  "overwrite": true,
+
+  // Keep transparency when the target format can hold it.
+  "preserveTransparency": true,
+
+  // Keep EXIF and colour profiles.
+  "preserveMetadata": true,
+
+  // Matte used when flattening transparency, and padding for square icons.
+  "background": "#FFFFFF",
+
+  // Workers to run at once. 0 means one per processor.
+  "parallelism": 0,
+
+  // Folder created beside the source when no destination is given; {0} is the target type.
+  "destinationFolderFormat": "Converted to {0}",
+
+  // Sizes written into an .ico, and the values -iconsize accepts.
+  "iconSizes": [16, 32, 48, 64, 128, 256]
+}

@@ -110,7 +110,7 @@ internal sealed record CliOptions
                     {
                         return ParseOutcome.Invalid(
                             $"nothing can write '{t}'. Common targets: jpg png webp avif tiff bmp gif ico jxl pdf. " +
-                            "Run 'nImgConvertor -formats' for the full list");
+                            "Run 'img2img -formats' for the full list");
                     }
 
                     targetFormat = resolved;
@@ -282,10 +282,10 @@ internal sealed record CliOptions
     }
 
     public static string HelpText => $"""
-        nImgConvertor 2 — batch image format conversion
+        img2img {AppInfo.Version} — batch image format conversion
 
         Usage:
-          nImgConvertor -s <source> -t <type> [options]
+          img2img -s <source> -t <type> [options]
 
           -s <path>      Source (required). One of:
                            a folder      C:\photos           every image in it
@@ -306,18 +306,23 @@ internal sealed record CliOptions
           -m <bool>      Preserve EXIF/ICC metadata (default {Defaults.Current.PreserveMetadata.ToString().ToLowerInvariant()})
           -p <n>         Parallel workers (default = CPU count)
           -e             Stop on first failure
+          -ui            Open the window instead, filled in from the flags given here
           -formats       List every format that can be read and written
           -h             Show this help
 
-        Defaults come from settings.json beside the executable, if present.
+        Running img2img with no arguments at all opens the window too.
+
+        Defaults come from the first settings.json found, if either exists:
+          {Defaults.UserSettingsPath}
+          {Defaults.InstalledSettingsPath}
 
         Reads HEIC, AVIF, camera RAW, PSD, SVG and around 260 others.
 
         Examples:
-          nImgConvertor -s .\photos -t jpg
-          nImgConvertor -s .\photos -r -d .\out -t webp -q 80
-          nImgConvertor -s "C:\iPhone\*.heic" -t jpg
-          nImgConvertor -s .\icons -d .\out -t jpg -trans false -bg #000000
+          img2img -s .\photos -t jpg
+          img2img -s .\photos -r -d .\out -t webp -q 80
+          img2img -s "C:\iPhone\*.heic" -t jpg
+          img2img -s .\icons -d .\out -t jpg -trans false -bg #000000
 
         Exit codes:
           0  everything converted, copied, or intentionally skipped

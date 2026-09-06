@@ -27,17 +27,17 @@ internal static class Application
                 return 0;
 
             case RunStatus.InvalidArguments:
-                Console.Error.WriteLine($"nImgConvertor: {outcome.Message}");
+                Console.Error.WriteLine($"img2img: {outcome.Message}");
                 Console.Error.WriteLine();
-                Console.Error.WriteLine("Run 'nImgConvertor -h' for usage.");
+                Console.Error.WriteLine("Run 'img2img -h' for usage.");
                 return 2;
 
             case RunStatus.SourceMissing or RunStatus.SourceUnreadable:
-                Console.Error.WriteLine($"nImgConvertor: {outcome.Message}");
+                Console.Error.WriteLine($"img2img: {outcome.Message}");
                 return 2;
 
             case RunStatus.DestinationUnavailable:
-                Console.Error.WriteLine($"nImgConvertor: could not create destination folder {outcome.Options!.DestinationPath}");
+                Console.Error.WriteLine($"img2img: could not create destination folder {outcome.Options!.DestinationPath}");
                 Console.Error.WriteLine($"  {outcome.Message}");
                 WriteProtectedFolderHelp(outcome.Options.DestinationPath);
                 return 2;

@@ -1,10 +1,10 @@
-# nImgConvertor
+# img2img
 
-Batch image format conversion from the command line. Point it at a folder, name a target
-type, get a folder of converted images and a report.
+Batch image format conversion, from a window or from the command line. Point it at a folder,
+name a target type, get a folder of converted images and a report.
 
 ```
-nImgConvertor -s .\photos -r -d .\converted -t jpg
+img2img -s .\photos -r -d .\converted -t jpg
 ```
 
 ```
@@ -23,18 +23,42 @@ nImgConvertor -s .\photos -r -d .\converted -t jpg
 ──────────────────────────────────────────
 ```
 
+## Installing
+
+`publish/installer/img2img-setup-<version>.exe` installs both programs, adds them to your
+PATH, and puts "Convert images here..." on the folder right-click menu. It installs for you
+alone by default, so it needs no administrator, and offers an all-users install to anyone who
+wants one. It checks for the .NET 10 runtime and fetches it from Microsoft only if missing.
+
+It is not signed, so SmartScreen will call the publisher unknown: *More info*, then
+*Run anyway*. See `src/Narula.Image.Convertor.Setup/README.md` for how it is built and exactly
+what it touches.
+
+Copying the two executables into a folder yourself works just as well; nothing depends on
+being installed.
+
 ## The window
 
 Running `img2img` with no arguments opens `img2imgUI`, the desktop app. It is also fine to
-run `img2imgUI` directly.
+run `img2imgUI` directly, and `img2img -ui` opens it deliberately.
+
+`-ui` carries the other flags over, so `img2img -ui -s "C:\photos" -t webp -r` opens the
+window with the source, target and recursion already set. Anything unusable is dropped
+without complaint rather than refusing to start — the window is in front of you, and every
+value is there to be corrected. The Explorer right-click entry is the same mechanism.
+
+**About** in the top corner reports the version, the ImageMagick build underneath, and how
+many formats this build can actually read and write, with a button to copy the lot.
 
 Drop a folder or an image onto it, choose a format, press Convert. That drop zone is the
 point of the app: it is what removes the need to type quoted paths, and it is the one thing
 a browser-based UI could not do — browsers withhold file paths by design.
 
 Both pickers filter as you type and keep a drop-down button, so they behave like the lists they
-resemble. While a conversion runs, everything that sets it up is disabled and Cancel takes over;
-cancelling keeps whatever had already been converted.
+resemble. The button always shows the whole list, not what is left after filtering on whatever
+is already in the box, which is what makes it a drop-down rather than a second search. While a
+conversion runs, everything that sets it up is disabled and Cancel takes over; cancelling keeps
+whatever had already been converted.
 
 The destination shows its full path as soon as a source is chosen, before any button is pressed,
 and says whether that folder already exists or will be created.
@@ -63,6 +87,7 @@ and neither can grow behaviour the other lacks.
 | `-m <bool>` | Preserve EXIF/ICC metadata, default `true` |
 | `-p <n>` | Parallel workers, default = CPU count |
 | `-e` | Stop on the first failure instead of carrying on |
+| `-ui` | Open the window instead, filled in from the other flags given here |
 | `-formats` | List every format that can be read and written |
 | `-h` | Help |
 
@@ -92,43 +117,43 @@ source folder.
 Convert a folder to JPEG, output beside the originals in `Converted to jpg`:
 
 ```bash
-nImgConvertor -s "C:\photos" -t jpg
+img2img -s "C:\photos" -t jpg
 ```
 
 Convert a photo library to JPEG, keeping the folder structure:
 
 ```bash
-nImgConvertor -s "C:\photos" -r -d "C:\converted" -t jpg
+img2img -s "C:\photos" -r -d "C:\converted" -t jpg
 ```
 
 Only the PNGs, only this folder:
 
 ```bash
-nImgConvertor -s "C:\photos\*.png" -t webp
+img2img -s "C:\photos\*.png" -t webp
 ```
 
 One file:
 
 ```bash
-nImgConvertor -s "C:\photos\front-elevation.webp" -t jpg
+img2img -s "C:\photos\front-elevation.webp" -t jpg
 ```
 
 Shrink a website's images to WebP at quality 80:
 
 ```bash
-nImgConvertor -s .\assets\img -r -d .\assets\webp -t webp -q 80
+img2img -s .\assets\img -r -d .\assets\webp -t webp -q 80
 ```
 
 Flatten transparent icons onto black, stripping metadata:
 
 ```bash
-nImgConvertor -s .\icons -d .\out -t jpg -trans false -bg #000000 -m false
+img2img -s .\icons -d .\out -t jpg -trans false -bg #000000 -m false
 ```
 
 Fill gaps without touching what is already there:
 
 ```bash
-nImgConvertor -s .\photos -r -d .\converted -t jpg -o false
+img2img -s .\photos -r -d .\converted -t jpg -o false
 ```
 
 ## What it does that you might not expect
@@ -159,7 +184,14 @@ nImgConvertor -s .\photos -r -d .\converted -t jpg -o false
 ## Changing the defaults
 
 Every default lives in `ToolDefaults` and can be overridden without rebuilding, by putting a
-`settings.json` beside the executable. Mention only what you want to change:
+`settings.json` in either of two places. The first one found wins:
+
+| Where | For |
+|---|---|
+| `%AppData%\9thAct\img2img\settings.json` | Your own preferences. Survives reinstalling, and works when the program lives somewhere you cannot write to |
+| Beside the executable | A copied or portable tool carrying its settings with it. This is the one the installer lays down, and it never overwrites an existing file |
+
+Mention only what you want to change:
 
 ```json
 {
@@ -215,7 +247,7 @@ To allow it:
 
 > Windows Security → Virus & threat protection → Ransomware protection →
 > Manage ransomware protection → Allow an app through Controlled folder access →
-> Add an allowed app → Browse all apps → pick `nImgConvertor.exe`
+> Add an allowed app → Browse all apps → pick `img2img.exe`
 
 Add the exact executable you run. A rebuild to a new location needs adding again.
 
@@ -240,7 +272,7 @@ reads **261 formats** and writes **197**. That includes HEIC/HEIF (iPhone photos
 camera RAW (CR2, CR3, NEF, ARW, DNG and friends), PSD, SVG and JPEG XL.
 
 ```bash
-nImgConvertor -formats
+img2img -formats
 ```
 
 `-t` accepts anything that can be written, so the target list is not a fixed menu.
@@ -252,7 +284,7 @@ not be swept up by "convert this folder". Naming a file outright or globbing an 
 counts as explicit intent and bypasses that list:
 
 ```bash
-nImgConvertor -s "C:\scans\*.pdf" -t png
+img2img -s "C:\scans\*.pdf" -t png
 ```
 
 ### Limitations
@@ -288,11 +320,22 @@ four times the size.
 Swap the platform for elsewhere: `-r linux-x64`, `-r linux-musl-x64` for Alpine, `-r osx-arm64`
 or `-r osx-x64`. A binary built on Windows arrives without the execute bit, so `chmod +x` it.
 
-The solution is three projects: `Narula.Image.Convertor` is the engine library,
-`.Cli` produces `img2img.exe`, and `.UI` produces `img2imgUI.exe`. Both executables call the
-same engine in-process, so there is one implementation of the conversion rules.
+The solution is four projects: `Narula.Image.Convertor` is the engine library, `.Cli`
+produces `img2img.exe`, `.UI` produces `img2imgUI.exe`, and `.Setup` builds the installer.
+Both executables call the same engine in-process, so there is one implementation of the
+conversion rules.
 
-Both produce exactly one `nImgConvertor.exe`. Without `-p:PublishSingleFile=true` you get
+The installer is built on purpose and is not part of a normal build, so this repository still
+builds and tests on a machine without Inno Setup:
+
+```bash
+dotnet build src/Narula.Image.Convertor.Setup -t:Installer
+```
+
+That needs Inno Setup 6.3+ (`winget install JRSoftware.InnoSetup`). It publishes both
+executables into one staging folder and compiles `publish/installer/img2img-setup-<version>.exe`.
+
+Both produce exactly one `img2img.exe`. Without `-p:PublishSingleFile=true` you get
 around 190 loose files instead. `-p:DebugType=none` drops the `.pdb`.
 
 Measured notes: trimming is unsafe with Magick.NET's native library, and ReadyToRun changed
@@ -313,10 +356,19 @@ Moving to Magick.NET removed that constraint entirely.
 
 ## Versions
 
+Versions are `major.minor.YY.MMDD`, dated when the build was made, and shared by every project
+from `Directory.Build.props`. `1.0.26.0906` is the first release of the installed product,
+built on 6 September 2026. Reproduce an older number with
+`dotnet build -p:BuildYear=26 -p:BuildDay=0906`.
+
+The .NET assembly version cannot hold a leading zero, so file properties read `1.0.26.906`
+while the About box and `-h` show the padded `1.0.26.0906`.
+
 | What | Where | Notes |
 |---|---|---|
 | **v1.0.0 — ImageSharp** | tag `v1.0.0`, branch `v1.0-imagesharp` | 23 MB exe, 9 formats, no HEIC/AVIF/RAW |
-| v2.1.0 — window + icons + settings | tag `v2.1.0`, `master` | `img2img.exe` 26 MB + `img2imgUI.exe` 55 MB |
+| 1.0.YY.MMDD — installer, About, `-ui` | `master` | Version scheme restarted here; the old 2.x numbering is retired |
+| v2.1.0 — window + icons + settings | tag `v2.1.0` | `img2img.exe` 26 MB + `img2imgUI.exe` 55 MB |
 | v2.0.0 — Magick.NET | tag `v2.0.0` | 261 read / 197 write, incl. HEIC/AVIF/RAW/PSD |
 
 Measured on 204 mixed files (154 MB) converting to JPEG: v1 took 8.5 s, v2 took 13.2 s.

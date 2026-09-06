@@ -222,6 +222,50 @@ internal sealed class MainViewModel : INotifyPropertyChanged
             ? Path.Combine(Source, "*" + SourceFilter)
             : Source;
 
+    /// <summary>
+    /// Fills the window in from values passed on the command line. Only what was actually given
+    /// is touched, so anything the caller left out keeps the default it already had.
+    /// </summary>
+    public void Apply(UiPrefill prefill)
+    {
+        if (prefill.Source is { } source) ApplySource(source);
+        if (prefill.Destination is { } destination) Destination = destination;
+        if (prefill.Target is { } target) Target = target;
+        if (prefill.Recursive is { } recursive) Recursive = recursive;
+        if (prefill.Quality is { } quality) Quality = quality;
+        if (prefill.Overwrite is { } overwrite) Overwrite = overwrite;
+        if (prefill.PreserveTransparency is { } transparency) PreserveTransparency = transparency;
+        if (prefill.PreserveMetadata is { } metadata) PreserveMetadata = metadata;
+        if (prefill.Background is { } background) Background = background;
+        if (prefill.IconSize is { } iconSize) IconSize = iconSize;
+    }
+
+    /// <summary>
+    /// The command line says "folder\*.heic" where the window says a folder plus a filter. Split
+    /// it back apart when the pattern is one this window can show, so the two controls agree;
+    /// otherwise leave the pattern intact, since the engine understands it either way.
+    /// </summary>
+    private void ApplySource(string source)
+    {
+        string name = Path.GetFileName(source);
+
+        if (name.Contains('*') || name.Contains('?'))
+        {
+            string extension = Path.GetExtension(name);
+
+            if (extension.Length > 1 && !extension.Contains('*') && !extension.Contains('?') &&
+                Path.GetDirectoryName(source) is { Length: > 0 } parent &&
+                SourceFilters.FirstOrDefault(f => f.Equals(extension, StringComparison.OrdinalIgnoreCase)) is { } known)
+            {
+                Source = parent;
+                SourceFilter = known;
+                return;
+            }
+        }
+
+        Source = source;
+    }
+
     public ConversionRequest BuildRequest() => new()
     {
         Source = EffectiveSource,

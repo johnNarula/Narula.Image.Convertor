@@ -496,9 +496,9 @@ Linux" and "runs on Linux", and only launching it on a real one surfaces it.
 
 ### Structure
 
-Three projects, because an executable cannot reference another executable:
+Four projects. Three of them exist because an executable cannot reference another executable:
 `Narula.Image.Convertor` is the engine library, `.Cli` is `img2img.exe`, `.UI` is
-`img2imgUI.exe`. Running `img2img` with no arguments launches the window found beside it, and
+`img2imgUI.exe`. `.Setup` is the fourth and contains no code at all. Running `img2img` with no arguments launches the window found beside it, and
 falls back to printing help when it is not there. That decision lives in the executable rather
 than the library, so nothing can spawn a process merely by calling the engine.
 
@@ -554,3 +554,80 @@ carry a second imaging dependency just to draw an icon.
 - The 204-file mixed fixture set produced identical outcome counts to v1 (162 converted,
   40 copied, 2 genuinely corrupt files failed).
 - 27 real WebP property photos converted to every common target.
+
+
+# Installed product
+
+## Version numbers
+
+`major.minor.YY.MMDD`, dated at build time in `Directory.Build.props` and shared by every
+project. It restarted at 1.0 when the product became something installed rather than a folder
+of executables, retiring the 2.x numbering.
+
+Centralising it was not tidiness. The engine had been shipping as 2.0.0 while the two
+executables beside it said 2.1.0, because three project files each carried their own number
+and only two got bumped. One definition cannot drift.
+
+The .NET assembly version is four integers, so `0906` is stored as `906` and file properties
+read `1.0.26.906`. The informational version keeps the padded string, and that is what the
+About box and `-h` show. This is a display detail with no behaviour attached, but it looks
+like a bug when first noticed, so it is written down here and in the props file.
+
+## -ui, and why its parser is a second one
+
+`img2img -ui` launches the window with the remaining flags, so a command line can hand over
+mid-thought and the Explorer right-click entry has something to call.
+
+It deliberately does not use `CliOptions.Parse`. That parser is strict, and rightly: a batch
+job that ran with a misunderstood flag is worse than one that refused to start. The window
+inverts that trade — it is about to be shown to a person who can see and correct every value,
+so refusing to open would be the worse failure. `UiPrefill.From` therefore cannot fail: it
+validates each flag independently, keeps what survives, and silently drops the rest.
+
+Two details in it are less obvious than they look. A value is only consumed when it is
+accepted, so `-s -t png` loses the unusable `-s` and still honours `-t` rather than eating it
+as a value. And a source is only offered if it is really there — a folder, a file, or a
+pattern whose folder exists — because a dead path in the window is worse than an empty one.
+
+## Settings in two places
+
+`%AppData%\9thAct\img2img\settings.json` is read first, then `settings.json` beside the
+executable. Yours wins, which is what lets an installer lay down a default it can never
+overwrite, and lets the tool work when installed somewhere unwritable.
+
+The window had never called `Defaults.Initialise` at all, so `settings.json` applied to the
+command line and not to the window: one tool with two sets of defaults. It does now, and
+warnings from a bad settings file are held and shown in About, because a window has nowhere
+to print them as they happen.
+
+## The installer
+
+Inno Setup, driven by an MSBuild target in `.Setup` rather than run by hand, so the version in
+the file name and the binaries inside always come from the same build. It is not part of a
+normal build: `dotnet build` and `dotnet test` still work on a machine with no Inno Setup.
+
+| Decision | Why |
+|---|---|
+| Per-user by default | No administrator, no UAC prompt. The wizard still offers all-users |
+| PATH is always the user's | It needs no elevation and it is the one a terminal actually inherits |
+| Explorer entry calls `img2imgUI.exe` directly | Going through the console `img2img.exe` would flash a console window |
+| .NET checked by looking for the shared framework | The `dotnet` CLI need not be on PATH; the directory always is |
+| Downloaded, not bundled | ~25 MB of setup instead of ~80 MB, and only for machines that need it |
+| Unsigned | There is no free Authenticode certificate SmartScreen trusts, and a self-signed one does not help. The cost is a "publisher unknown" warning |
+| `AppId` never changes | It is how Windows recognises an existing install and upgrades it in place |
+
+## Two Avalonia traps, both found only by launching
+
+`AutoCompleteBox` will not open its list programmatically while text is selected and
+`IsTextCompletionEnabled` is on: `TextUpdated` returns before it populates. Focusing the
+control selects all of its text, so the chevron opened nothing and merely highlighted the box.
+Inline completion is now off on both pickers. The chevron is also non-focusable, because the
+control closes its list on lost focus, and it lifts the filter while opening so the button
+shows the whole list rather than the remnant of what was typed.
+
+A button's content alignment defaults to `Stretch`, which stretches the glyph's text block and
+draws the glyph at its top edge, in a button that is itself correctly full height. It needs
+`VerticalContentAlignment="Center"`.
+
+Neither produced a build warning. Both were found by launching the window, clicking, and
+photographing the result — which is now the standing rule for this project's UI work.

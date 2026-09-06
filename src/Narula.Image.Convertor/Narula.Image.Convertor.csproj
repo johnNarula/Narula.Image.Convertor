@@ -17,13 +17,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <Product>Image to Image Convertor</Product>
     <Description>Batch image format conversion from the command line.</Description>
-    <Authors>John Narula</Authors>
-    <Company>9thAct LLC</Company>
-    <Copyright>2026 Copyright © 9th Act, LLC</Copyright>
-    <Version>2.0.0</Version>
-    <Title>Image to Image Convertor</Title>
   </PropertyGroup>
 
   <ItemGroup>
