@@ -30,14 +30,15 @@ nImgConvertor -s .\photos -r -d .\converted -t jpg
 | `-s <path>` | Source (required) — a folder, a glob, or a single file. See below |
 | `-r` | Recurse into subfolders; the destination mirrors the tree |
 | `-d <path>` | Destination folder. Defaults to a `Converted to <type>` folder inside the source folder |
-| `-t <type>` | Target: `jpg` `jpeg` `png` `webp` `bmp` `gif` `tiff` `tif` `tga` |
+| `-t <type>` | Target — `jpg` `png` `webp` `avif` `tiff` `bmp` `gif` `ico` `jxl` `pdf` and ~190 more (`-formats`) |
 | `-q <1-100>` | Encoder quality, default 85 (JPEG and WebP only) |
 | `-o <bool>` | Overwrite existing destination files, default `true` |
 | `-trans <bool>` | Preserve transparency, default `true` |
-| `-bg <#RRGGBB>` | Matte colour used when flattening, default `#FFFFFF` |
+| `-bg <colour>` | Matte used when flattening — `#RRGGBB` or a name like `white`, default `#FFFFFF` |
 | `-m <bool>` | Preserve EXIF/ICC metadata, default `true` |
 | `-p <n>` | Parallel workers, default = CPU count |
 | `-e` | Stop on the first failure instead of carrying on |
+| `-formats` | List every format that can be read and written |
 | `-h` | Help |
 
 Boolean flags take an explicit value: `-o false`, not a bare `-o`.
@@ -111,9 +112,12 @@ nImgConvertor -s .\photos -r -d .\converted -t jpg -o false
   is a complete mirror and nothing loses quality for no reason. Asking for `-trans false`,
   `-m false`, a different JPEG `-q`, or converting a photo that needs uprighting all force
   a genuine re-encode instead.
-- **Transparent images going to JPEG or BMP are flattened onto `-bg`**, because those
-  containers have no alpha channel. Set `-bg` or you get white.
-- **Animated GIFs become a single still frame** unless the target is GIF, WebP, or TIFF.
+- **Transparency is flattened onto `-bg` when the target cannot carry alpha.** Which
+  formats those are is determined at runtime by encoding a tiny transparent image and
+  checking whether it survived, so it stays correct across all ~190 targets.
+- **Animation is kept when the target can hold it** (GIF, WebP, TIFF, AVIF and others) and
+  collapses to the first frame when it cannot. This is read from ImageMagick per format,
+  not from a list baked into the tool.
 - **Non-image files are ignored**, not reported as failures.
 - **`.heic` / `.heif` / `.avif` are listed as failures** rather than skipped silently, so
   you know those files were in the folder (see limitations).
@@ -140,16 +144,32 @@ Add the exact executable you run. A rebuild to a new location needs adding again
 
 The tool prints these steps, and the path to add, whenever destination creation fails.
 
-## Limitations
+## Formats
 
-The decoder is [ImageSharp](https://github.com/SixLabors/ImageSharp), which reads JPEG,
-PNG, GIF, BMP, TIFF, WebP, TGA, PBM, and QOI. It **cannot** read HEIC/HEIF (iPhone
-photos), AVIF, camera RAW, or PSD. Those files are reported as
-`unsupported format (HEIC/AVIF)` rather than converted.
+The decoder is [Magick.NET](https://github.com/dlemstra/Magick.NET) (ImageMagick), which
+reads **261 formats** and writes **197**. That includes HEIC/HEIF (iPhone photos), AVIF,
+camera RAW (CR2, CR3, NEF, ARW, DNG and friends), PSD, SVG and JPEG XL.
 
-Support can be added later without restructuring anything: `IImageConverter` is the seam,
-and a Magick.NET-backed implementation would take over the extensions listed in
-`ImageSharpConverter.RequiresFallbackDecoder`.
+```bash
+nImgConvertor -formats
+```
+
+`-t` accepts anything that can be written, so the target list is not a fixed menu.
+HEIC is a notable read-only case: it decodes, but nothing here can encode it.
+
+A **folder scan** picks up a deliberate list of picture extensions rather than everything
+ImageMagick can decode — it also reads `txt`, `html`, `json` and `pdf`, and those should
+not be swept up by "convert this folder". Naming a file outright or globbing an extension
+counts as explicit intent and bypasses that list:
+
+```bash
+nImgConvertor -s "C:\scans\*.pdf" -t png
+```
+
+### Limitations
+
+Writing HEIC is not supported. Vector sources (SVG, AI, EPS) rasterise at their natural
+size — there is no resize flag to control that.
 
 ## Building
 
@@ -160,30 +180,36 @@ dotnet test
 ```
 
 ```bash
-dotnet publish src/Narula.Image.Convertor -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true -o publish/win-x64
+dotnet publish src/Narula.Image.Convertor -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/v2
 ```
 
-That produces a standalone `publish/win-x64/nImgConvertor.exe` (~23 MB) that runs on a
-machine with no .NET installed. For a much smaller build on a machine that already has
-the .NET 10 runtime, drop `--self-contained true -p:PublishTrimmed=true`.
+That produces a standalone `nImgConvertor.exe` of about 100 MB that runs on a machine with
+no .NET installed. It is large because ImageMagick's native library is bundled; trimming
+is not safe with it, and ReadyToRun was measured to change startup by a millisecond while
+costing 12 MB, so it is off. For a much smaller build on a machine that already has the
+.NET 10 runtime, drop `--self-contained true -p:PublishSingleFile=true`.
+
+The first run extracts the native libraries to a temp folder, so it is slower than later
+ones.
 
 ## Licensing note
 
-This project depends on ImageSharp **3.1.12** under the Six Labors Split License, which
-grants Apache-2.0 terms for open-source use, non-profits, and for-profit use under 1M USD
-annual gross revenue.
+v2 depends on **Magick.NET-Q8-AnyCPU** under the Apache-2.0 ImageMagick licence. No
+licence key, no revenue threshold.
 
-ImageSharp 4.x is pinned away from deliberately: it adds a build-time licence-key check
-that **fails Release builds** without a key from Six Labors, even for users who qualify
-for the free grant. If a key is obtained, upgrading is a package bump plus one call site
-(`Color.TryParseHex` gained a `ColorHexFormat` argument in 4.x).
+v1 used ImageSharp 3.1.12 under the Six Labors Split License and was pinned there because
+ImageSharp 4.x adds a build-time licence-key check that fails Release builds without a key.
+Moving to Magick.NET removed that constraint entirely.
 
 ## Versions
 
 | What | Where | Notes |
 |---|---|---|
 | **v1.0.0 — ImageSharp** | tag `v1.0.0`, branch `v1.0-imagesharp` | 23 MB exe, 9 formats, no HEIC/AVIF/RAW |
-| v2 — Magick.NET | branch `v2-magick` | ~76 MB exe, 261 formats incl. HEIC/AVIF/RAW/PSD |
+| v2.0.0 — Magick.NET | branch `v2-magick` | 100 MB exe, 261 read / 197 write, incl. HEIC/AVIF/RAW/PSD |
+
+Measured on 204 mixed files (154 MB) converting to JPEG: v1 took 8.5 s, v2 took 13.2 s.
+v2 is about 1.5x slower and 4x larger; it reads formats v1 cannot open at all.
 
 ### Going back to v1.0
 

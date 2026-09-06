@@ -9,7 +9,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <PublishReadyToRun>true</PublishReadyToRun>
+    <!-- Measured: R2R changed startup by 1ms here (single-file extraction dominates) and cost 12MB. -->
+    <PublishReadyToRun>false</PublishReadyToRun>
     <!-- Magick.NET carries native libraries: trimming is unsafe and they must be bundled. -->
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <PublishTrimmed>false</PublishTrimmed>

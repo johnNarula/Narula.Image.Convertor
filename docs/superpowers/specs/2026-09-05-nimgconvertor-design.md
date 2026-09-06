@@ -5,7 +5,8 @@
 - **Namespace:** Narula.Image.Convertor
 - **Output:** `nImgConvertor.exe`
 - **Target framework:** `net10.0` (C# 14)
-- **Status:** Built and verified. This document describes what was implemented.
+- **Status:** v1 shipped (tag `v1.0.0`). This document describes v2 on branch `v2-magick`.
+- **v2 change:** ImageSharp replaced wholesale by Magick.NET
 
 ## Purpose
 
@@ -299,3 +300,86 @@ works around the same clash with a `using ISImage = SixLabors.ImageSharp.Image;`
 ## Open items
 
 None.
+
+---
+
+# v2 — Magick.NET
+
+## Why replace rather than fall back
+
+v1's design left `IImageConverter` as a seam so Magick.NET could be added *behind*
+ImageSharp for formats it could not read. Measuring the actual cost changed the answer:
+a published build carrying Magick.NET is around 100 MB whether or not ImageSharp is also
+present, so the hybrid bought only speed on common formats, at the price of two decoders
+whose metadata, quality and transparency semantics would have to be kept in agreement.
+v1's pass-through rule leaned on ImageSharp's quantization-table quality estimate, which
+Magick reports differently — exactly the sort of divergence that produces quiet bugs.
+
+Replacing outright also retired the ImageSharp licence pin. Magick.NET is Apache-2.0 with
+no key check, so there is no longer a version the project cannot upgrade to.
+
+## What the numbers were
+
+| | v1 (ImageSharp 3.1.12) | v2 (Magick.NET 14.17.1) |
+|---|---|---|
+| Published exe | 23 MB, trimmed | 100 MB, not trimmable |
+| Startup (`-h`, mean of 5) | 58 ms | 83 ms |
+| 204 files / 154 MB → JPEG | 8.5 s | 13.2 s |
+| Output for that run | 42.8 MB | 36.6 MB |
+| Formats read / written | 9 / 9 | 261 / 197 |
+
+v2 is roughly 1.5x slower and 4x larger. It produced smaller JPEGs at the same nominal
+`-q 85`, because the two encoders map that number onto different settings; the number is
+not comparable across the versions.
+
+ReadyToRun was measured at 84 ms startup against 83 ms without, for 12 MB — single-file
+native extraction dominates startup, so R2R is off.
+
+## Format rules are asked, not asserted
+
+Opening `-t` to every writable format is only safe if the per-format rules cannot go
+stale, so all three come from ImageMagick at runtime:
+
+- **writable** — `MagickFormatInfo.SupportsWriting`, which is what validates `-t`
+- **multi-frame** — `MagickFormatInfo.SupportsMultipleFrames`, which decides whether an
+  animation is preserved or collapsed to its first frame
+- **alpha** — not exposed by the format table, so `ImageFormats.SupportsAlpha` probes it:
+  encode a 2×2 transparent image to the format, read it back, report whether the
+  transparency survived. About 3 ms, cached per format. A format that refuses the probe is
+  assumed to keep alpha, which is the safe direction to be wrong — the matte colour is
+  applied anyway if the encoder drops it.
+
+## Source selection stays curated
+
+`-t` is open; the folder scan is not. ImageMagick reads `txt`, `html`, `json` and `pdf`,
+and a user running "convert this folder to jpg" does not want their notes swept in. The
+scan therefore keeps a deliberate list of picture extensions.
+
+Explicit intent overrides it. Naming a file, or writing a glob with a concrete extension
+such as `*.pdf`, sets `SourceExtensionIsExplicit` and bypasses the list entirely.
+
+## Behaviour changes from v1
+
+- Animation is preserved when the target supports multiple frames, instead of always
+  collapsing to the first frame. GIF → WebP keeps all frames; GIF → JPEG keeps one.
+- `-bg` accepts ImageMagick colour names (`white`, `chartreuse`) as well as hex.
+- `-q` applies to any format that records a quality, not just JPEG and WebP.
+- Failure reasons are cleaned up before display: ImageMagick appends the offending path
+  and the C source location that raised the error, both of which are noise in a report
+  that already shows the path.
+
+Everything else — the three forms of `-s`, the default destination, mirrored trees,
+collision resolution, overwrite policy, pass-through, uprighting, atomic writes, exit
+codes, the progress line and the report — is unchanged and still covered by its tests.
+
+## Verification
+
+92 tests, plus these end-to-end checks on real files:
+
+- **Six real iPhone HEIC photos** converted to JPEG: v2 converted all six with correct
+  dimensions, orientation and format; v1 failed all six with "unsupported format".
+- AVIF, JPEG XL and PSD written from JPEG and then read back and converted onward, so both
+  directions of each new format are exercised.
+- The 204-file mixed fixture set produced identical outcome counts to v1 (162 converted,
+  40 copied, 2 genuinely corrupt files failed).
+- 27 real WebP property photos converted to every common target.

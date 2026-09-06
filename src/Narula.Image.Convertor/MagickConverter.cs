@@ -77,7 +77,7 @@ internal sealed class MagickConverter : IImageConverter
         catch (MagickException exception)
         {
             TryDeleteTemp(temporaryPath);
-            return ConversionResult.Failed(item, FirstLine(exception.Message));
+            return ConversionResult.Failed(item, Clean(exception.Message));
         }
         catch (UnauthorizedAccessException)
         {
@@ -87,7 +87,7 @@ internal sealed class MagickConverter : IImageConverter
         catch (Exception exception)
         {
             TryDeleteTemp(temporaryPath);
-            return ConversionResult.Failed(item, FirstLine(exception.Message));
+            return ConversionResult.Failed(item, Clean(exception.Message));
         }
     }
 
@@ -182,11 +182,29 @@ internal sealed class MagickConverter : IImageConverter
         return options.Quality is not { } requested || info.Quality == 0 || info.Quality == (uint)requested;
     }
 
-    private static string FirstLine(string message)
+    /// <summary>
+    /// ImageMagick messages carry the offending path and the C source location that raised them —
+    /// "image type not supported `C:\photos\x.heic' @ error/heic.c/ReadHEICImage/1036". The report
+    /// already shows the path, so trim back to the part that tells the user something.
+    /// </summary>
+    private static string Clean(string message)
     {
-        string trimmed = message.Trim();
-        int newline = trimmed.IndexOfAny(['\r', '\n']);
-        return newline < 0 ? trimmed : trimmed[..newline];
+        string text = message.Trim();
+
+        int location = text.IndexOf(" @ ", StringComparison.Ordinal);
+        if (location > 0)
+        {
+            text = text[..location];
+        }
+
+        int quotedPath = text.IndexOf(" `", StringComparison.Ordinal);
+        if (quotedPath > 0)
+        {
+            text = text[..quotedPath];
+        }
+
+        int newline = text.IndexOfAny(['\r', '\n']);
+        return (newline < 0 ? text : text[..newline]).Trim();
     }
 
     private static void TryDeleteTemp(string path)
