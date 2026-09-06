@@ -98,10 +98,11 @@ internal static class ImageFormats
     /// <summary>Every format that can be written, as name and ImageMagick's own description.</summary>
     public static IReadOnlyList<(string Name, string Description)> WritableFormats() =>
     [
+        // A format with no description of its own is dropped rather than listed blank, which is
+        // also what makes the description here non-null: the filter runs before the pairing.
         .. MagickNET.SupportedFormats
-            .Where(f => f.SupportsWriting)
-            .Select(f => (Name: f.Format.ToString().ToLowerInvariant(), f.Description))
-            .Where(f => !string.IsNullOrWhiteSpace(f.Description))
+            .Where(f => f.SupportsWriting && !string.IsNullOrWhiteSpace(f.Description))
+            .Select(f => (Name: f.Format.ToString().ToLowerInvariant(), Description: f.Description!))
             .DistinctBy(f => f.Name)
             .OrderBy(f => f.Name, StringComparer.Ordinal),
     ];
