@@ -1,19 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
-    <AssemblyName>Narula.Image.Convertor</AssemblyName>
-    <RootNamespace>Narula.Image.Convertor</RootNamespace>
+    <AssemblyName>img2img</AssemblyName>
+    <RootNamespace>Narula.Image.Convertor.Cli</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <InvariantGlobalization>true</InvariantGlobalization>
-    <!-- Measured: R2R changed startup by 1ms here (single-file extraction dominates) and cost 12MB. -->
-    <PublishReadyToRun>false</PublishReadyToRun>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <ApplicationIcon>..\Narula.Image.Convertor\icon.ico</ApplicationIcon>
     <!-- Magick.NET carries native libraries: trimming is unsafe and they must be bundled. -->
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <PublishTrimmed>false</PublishTrimmed>
-    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- Measured: R2R changed startup by 1ms here (single-file extraction dominates) and cost 12MB. -->
+    <PublishReadyToRun>false</PublishReadyToRun>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -22,18 +24,12 @@
     <Authors>John Narula</Authors>
     <Company>9thAct LLC</Company>
     <Copyright>2026 Copyright © 9th Act, LLC</Copyright>
-    <Version>2.0.0</Version>
     <Title>Image to Image Convertor</Title>
+    <Version>2.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Narula.Image.Convertor.Tests" />
-    <InternalsVisibleTo Include="img2img" />
-    <InternalsVisibleTo Include="img2imgUI" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.17.1" />
+    <ProjectReference Include="..\Narula.Image.Convertor\Narula.Image.Convertor.csproj" />
   </ItemGroup>
 
 </Project>

@@ -13,101 +13,50 @@ internal static class Application
     {
         Defaults.Initialise(Console.Error);
 
-        ParseOutcome parsed = CliOptions.Parse(args);
+        ConsoleProgressSink progress = new();
+        RunOutcome outcome = await ConversionRun.ExecuteAsync(args, progress, cancellationToken);
 
-        if (parsed.HelpRequested)
+        switch (outcome.Status)
         {
-            Console.WriteLine(CliOptions.HelpText);
-            return 0;
-        }
+            case RunStatus.HelpRequested:
+                Console.WriteLine(CliOptions.HelpText);
+                return 0;
 
-        if (parsed.FormatsRequested)
-        {
-            ImageFormats.WriteListing(Console.Out);
-            return 0;
-        }
+            case RunStatus.FormatsRequested:
+                ImageFormats.WriteListing(Console.Out);
+                return 0;
 
-        if (parsed.Options is null)
-        {
-            Console.Error.WriteLine($"nImgConvertor: {parsed.Error}");
-            Console.Error.WriteLine();
-            Console.Error.WriteLine("Run 'nImgConvertor -h' for usage.");
-            return 2;
-        }
-
-        CliOptions options = parsed.Options;
-
-        if (options.SourceIsSingleFile)
-        {
-            if (!File.Exists(Path.Combine(options.SourceRoot, options.SourcePattern)))
-            {
-                Console.Error.WriteLine($"nImgConvertor: source file not found: {options.SourceInput}");
+            case RunStatus.InvalidArguments:
+                Console.Error.WriteLine($"nImgConvertor: {outcome.Message}");
+                Console.Error.WriteLine();
+                Console.Error.WriteLine("Run 'nImgConvertor -h' for usage.");
                 return 2;
-            }
-        }
-        else if (!Directory.Exists(options.SourceRoot))
-        {
-            Console.Error.WriteLine($"nImgConvertor: source folder not found: {options.SourceRoot}");
-            return 2;
-        }
 
-        ScanResult scan;
+            case RunStatus.SourceMissing or RunStatus.SourceUnreadable:
+                Console.Error.WriteLine($"nImgConvertor: {outcome.Message}");
+                return 2;
 
-        try
-        {
-            scan = FileScanner.Scan(options);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            Console.Error.WriteLine($"nImgConvertor: could not read {options.SourceRoot}: {exception.Message}");
-            return 2;
+            case RunStatus.DestinationUnavailable:
+                Console.Error.WriteLine($"nImgConvertor: could not create destination folder {outcome.Options!.DestinationPath}");
+                Console.Error.WriteLine($"  {outcome.Message}");
+                WriteProtectedFolderHelp(outcome.Options.DestinationPath);
+                return 2;
+
+            case RunStatus.NothingToDo:
+                Console.WriteLine(outcome.Message);
+                return 0;
         }
 
-        try
-        {
-            Directories.EnsureExists(options.DestinationPath);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            Console.Error.WriteLine($"nImgConvertor: could not create destination folder {options.DestinationPath}");
-            Console.Error.WriteLine($"  {exception.Message}");
-
-            WriteProtectedFolderHelp(options.DestinationPath);
-            return 2;
-        }
-
-        if (scan.Total == 0)
-        {
-            Console.WriteLine(options.SourcePattern == "*"
-                ? $"No image files found in {options.SourceRoot}."
-                : $"No files matching {options.SourcePattern} found in {options.SourceRoot}.");
-            return 0;
-        }
-
-        // We run our own workers, so ImageMagick must not also fan out per image.
-        ResourceLimits.Thread = 1;
-
-        ProgressReporter progress = new(scan.Items.Count);
-        MagickConverter converter = new(options);
-
-        Stopwatch stopwatch = Stopwatch.StartNew();
-        IReadOnlyList<ConversionResult> results =
-            await ConversionEngine.RunAsync(scan.Items, options, converter, progress, cancellationToken);
-        stopwatch.Stop();
-
-        progress.Finish();
-
-        List<ConversionResult> all = [.. results, .. scan.Rejected];
-        Report.Render(all, scan.Total, stopwatch.Elapsed, options);
+        Report.Render(outcome.Results, outcome.TotalPlanned, outcome.Elapsed, outcome.Options!);
 
         // A refused write is a policy decision elsewhere, not a bad image. Explain it once,
         // after the report, however many files it hit.
-        if (all.Any(r => r.Outcome == Outcome.Failed && r.Reason == ConversionResult.PermissionDenied))
+        if (outcome.WriteRefused)
         {
-            WriteProtectedFolderHelp(options.DestinationPath);
+            WriteProtectedFolderHelp(outcome.Options!.DestinationPath);
         }
 
-        return all.Any(r => r.Outcome == Outcome.Failed) ? 1 : 0;
+        return outcome.AnyFailed ? 1 : 0;
     }
 
     /// <summary>

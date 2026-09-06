@@ -1,0 +1,180 @@
+using Narula.Image.Convertor;
+using Narula.Image.Convertor.UI;
+
+namespace ImageConvertor.Tests;
+
+public class MainViewModelTests
+{
+    [Fact]
+    public void The_window_cannot_convert_until_a_source_is_chosen()
+    {
+        MainViewModel model = Model();
+
+        Assert.False(model.CanConvert);
+
+        model.Source = @"C:\photos";
+        Assert.True(model.CanConvert);
+    }
+
+    [Fact]
+    public void The_destination_hint_shows_where_output_will_land()
+    {
+        MainViewModel model = Model();
+        model.Source = Path.GetTempPath();
+        model.Target = "webp";
+
+        // Nobody should have to guess what the default does.
+        Assert.EndsWith("Converted to webp", model.DestinationHint);
+
+        model.Destination = @"C:\elsewhere";
+        Assert.Equal(@"C:\elsewhere", model.DestinationHint);
+    }
+
+    [Theory]
+    [InlineData("jpg", @"C:\photos", false)]
+    [InlineData("ico", @"C:\photos", true)]
+    [InlineData("png", @"C:\photos\app.ico", true)]
+    public void Icon_sizes_only_appear_when_an_icon_is_involved(string target, string source, bool expected)
+    {
+        MainViewModel model = Model();
+        model.Source = source;
+        model.Target = target;
+
+        Assert.Equal(expected, model.IconSizeApplies);
+    }
+
+    [Fact]
+    public void The_window_speaks_to_the_engine_in_its_own_language()
+    {
+        MainViewModel model = Model();
+        model.Source = @"C:\photos";
+        model.Target = "webp";
+        model.Recursive = true;
+        model.Quality = 80;
+        model.PreserveTransparency = false;
+        model.Background = "#101010";
+
+        string[] args = model.BuildRequest().ToArguments();
+
+        Assert.Equal(@"C:\photos", Value(args, "-s"));
+        Assert.Equal("webp", Value(args, "-t"));
+        Assert.Equal("80", Value(args, "-q"));
+        Assert.Equal("false", Value(args, "-trans"));
+        Assert.Equal("#101010", Value(args, "-bg"));
+        Assert.Contains("-r", args);
+
+        // No -d means the engine applies its own default, rather than the window inventing one.
+        Assert.DoesNotContain("-d", args);
+
+        // Those arguments must survive the real parser.
+        Assert.NotNull(CliOptions.Parse(args).Options);
+    }
+
+    [Fact]
+    public void An_icon_size_is_only_sent_when_it_applies()
+    {
+        MainViewModel model = Model();
+        model.Source = @"C:\photos";
+        model.IconSize = 64;
+
+        model.Target = "jpg";
+        Assert.DoesNotContain("-iconsize", model.BuildRequest().ToArguments());
+
+        model.Target = "ico";
+        Assert.Equal("64", Value(model.BuildRequest().ToArguments(), "-iconsize"));
+    }
+
+    [Fact]
+    public async Task A_finished_run_is_summarised_and_failures_listed()
+    {
+        WorkItem good = new(@"C:\a\one.png", @"C:\out\one.jpg", "one.png");
+        WorkItem bad = new(@"C:\a\two.heic", @"C:\out\two.jpg", "two.heic");
+
+        MainViewModel model = Model(new RunOutcome(
+            RunStatus.Completed,
+            null,
+            CliOptions.Parse(["-s", "in", "-d", "out", "-t", "jpg"]).Options,
+            [ConversionResult.Converted(good, 2048, 1024), ConversionResult.Failed(bad, "unsupported format")],
+            2,
+            TimeSpan.FromSeconds(1.5)));
+
+        model.Source = @"C:\photos";
+        await model.ConvertAsync();
+
+        Assert.Contains("1 converted", model.Summary);
+        Assert.Contains("1 failed", model.Summary);
+        Assert.Equal("Finished with failures.", model.Status);
+        Assert.Contains("two.heic — unsupported format", model.Failures);
+        Assert.False(model.Running);
+    }
+
+    [Fact]
+    public async Task A_blocked_destination_explains_controlled_folder_access()
+    {
+        MainViewModel model = Model(RunOutcome.Stopped(
+            RunStatus.DestinationUnavailable,
+            "Could not find file C:/out",
+            CliOptions.Parse(["-s", "in", "-d", "out", "-t", "jpg"]).Options));
+
+        model.Source = @"C:\photos";
+        await model.ConvertAsync();
+
+        Assert.Contains("Controlled Folder Access", model.Summary);
+    }
+
+    [Fact]
+    public async Task Progress_is_reported_while_the_run_proceeds()
+    {
+        double seen = -1;
+
+        MainViewModel model = new((args, progress, token) =>
+        {
+            progress.Report(3, 4, "three.png");
+            return Task.FromResult(RunOutcome.Stopped(RunStatus.NothingToDo, "done"));
+        });
+
+        model.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainViewModel.Progress)) seen = model.Progress;
+        };
+
+        model.Source = @"C:\photos";
+        await model.ConvertAsync();
+
+        Assert.Equal(75, seen);
+    }
+
+    [Fact]
+    public async Task The_window_converts_real_files_through_the_real_engine()
+    {
+        using TestWorkspace workspace = new();
+        workspace.WritePng("one.png");
+        workspace.WritePng("two.png");
+
+        // The parameterless constructor is what the window uses: no stub anywhere in this path.
+        MainViewModel model = new()
+        {
+            Source = workspace.Source,
+            Destination = workspace.Destination,
+            Target = "jpg",
+        };
+
+        await model.ConvertAsync();
+
+        Assert.Equal("Finished.", model.Status);
+        Assert.Contains("2 converted", model.Summary);
+        Assert.Empty(model.Failures);
+        Assert.Equal(100, model.Progress);
+        Assert.True(File.Exists(workspace.InDestination("one.jpg")));
+        Assert.True(File.Exists(workspace.InDestination("two.jpg")));
+    }
+
+    private static MainViewModel Model(RunOutcome? outcome = null) =>
+        new((args, progress, token) => Task.FromResult(outcome ?? RunOutcome.Stopped(RunStatus.NothingToDo, "nothing")));
+
+    private static string? Value(string[] args, string flag)
+    {
+        int index = Array.IndexOf(args, flag);
+        return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
+    }
+}

@@ -1,35 +1,36 @@
 namespace Narula.Image.Convertor;
 
 /// <summary>
+/// Somewhere for the engine to report progress, without knowing whether that is a console line
+/// or a progress bar. The engine counts; a sink only presents.
+/// </summary>
+internal interface IProgressSink
+{
+    void Report(int completed, int total, string fileName);
+
+    void Finish();
+}
+
+/// <summary>
 /// Writes the "Processing x of y" line. On a real console it redraws one line in place and
 /// throttles itself, because at a few thousand files the console becomes slower than the encoder.
 /// When output is redirected it falls back to one plain line per file so logs and pipes still work.
 /// </summary>
-internal sealed class ProgressReporter
+internal sealed class ConsoleProgressSink : IProgressSink
 {
     private const int MinimumRedrawIntervalMs = 50;
 
-    private readonly int _total;
-    private readonly bool _inPlace;
+    private readonly bool _inPlace = !Console.IsOutputRedirected;
     private readonly Lock _gate = new();
 
-    private int _completed;
     private long _lastDrawTicks = -MinimumRedrawIntervalMs;
     private int _lastLineLength;
 
-    public ProgressReporter(int total)
+    public void Report(int done, int total, string fileName)
     {
-        _total = total;
-        _inPlace = !Console.IsOutputRedirected;
-    }
-
-    public void Report(string fileName)
-    {
-        int done = Interlocked.Increment(ref _completed);
-
         if (!_inPlace)
         {
-            Console.WriteLine($"Processing {fileName} ({done} of {_total})...");
+            Console.WriteLine($"Processing {fileName} ({done} of {total})...");
             return;
         }
 
@@ -38,13 +39,13 @@ internal sealed class ProgressReporter
         lock (_gate)
         {
             // Always draw the final tick; throttle everything in between.
-            if (done != _total && now - _lastDrawTicks < MinimumRedrawIntervalMs)
+            if (done != total && now - _lastDrawTicks < MinimumRedrawIntervalMs)
             {
                 return;
             }
 
             _lastDrawTicks = now;
-            Draw($"Processing {fileName} ({done} of {_total})...");
+            Draw($"Processing {fileName} ({done} of {total})...");
         }
     }
 

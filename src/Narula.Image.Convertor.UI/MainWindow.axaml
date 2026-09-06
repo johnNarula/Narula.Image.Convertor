@@ -1,0 +1,111 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Narula.Image.Convertor.UI"
+        x:Class="Narula.Image.Convertor.UI.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="Image to Image Convertor"
+        Width="720" Height="640"
+        MinWidth="620" MinHeight="560">
+
+  <Window.Styles>
+    <Style Selector="TextBlock.label">
+      <Setter Property="Opacity" Value="0.7" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Margin" Value="0,0,0,4" />
+    </Style>
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundListLowBrush}" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="14" />
+      <Setter Property="Margin" Value="0,0,0,12" />
+    </Style>
+  </Window.Styles>
+
+  <ScrollViewer Padding="18">
+    <StackPanel>
+
+      <!-- Source: dropping a folder is the whole point; typing paths is what we are replacing. -->
+      <Border Classes="card">
+        <StackPanel>
+          <TextBlock Classes="label" Text="SOURCE" />
+          <Border x:Name="DropZone"
+                  BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                  CornerRadius="6" Padding="16" Margin="0,0,0,8">
+            <TextBlock x:Name="SourceText" Text="Drop a folder or image here" TextWrapping="Wrap" />
+          </Border>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button x:Name="BrowseFolder" Content="Choose folder..." />
+            <Button x:Name="BrowseFile" Content="Choose file..." />
+            <CheckBox Content="Include subfolders" IsChecked="{Binding Recursive}" VerticalAlignment="Center" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel>
+          <TextBlock Classes="label" Text="CONVERT TO" />
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <ComboBox x:Name="TargetBox" Width="130"
+                      ItemsSource="{Binding Targets}"
+                      SelectedItem="{Binding Target}" />
+            <StackPanel Orientation="Horizontal" Spacing="6"
+                        IsVisible="{Binding QualityApplies}" VerticalAlignment="Center">
+              <TextBlock Text="Quality" VerticalAlignment="Center" />
+              <Slider Width="180" Minimum="1" Maximum="100" Value="{Binding Quality}"
+                      TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding Quality}" Width="30" VerticalAlignment="Center" />
+            </StackPanel>
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0"
+                      IsVisible="{Binding IconSizeApplies}">
+            <TextBlock Text="Icon size" VerticalAlignment="Center" />
+            <ComboBox x:Name="IconSizeBox" Width="120" ItemsSource="{Binding IconSizes}"
+                      SelectedItem="{Binding IconSize}" PlaceholderText="All sizes" />
+            <Button x:Name="ClearIconSize" Content="All sizes" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel>
+          <TextBlock Classes="label" Text="DESTINATION" />
+          <TextBlock Text="{Binding DestinationHint}" TextWrapping="Wrap" Margin="0,0,0,8" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button x:Name="BrowseDestination" Content="Choose folder..." />
+            <Button x:Name="ClearDestination" Content="Use default" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <Expander Header="More options" Margin="0,0,0,12">
+        <StackPanel Spacing="8" Margin="0,8,0,0">
+          <CheckBox Content="Overwrite files already in the destination" IsChecked="{Binding Overwrite}" />
+          <CheckBox Content="Keep transparency where the format allows" IsChecked="{Binding PreserveTransparency}" />
+          <CheckBox Content="Keep EXIF and colour profiles" IsChecked="{Binding PreserveMetadata}" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="Background when flattening" VerticalAlignment="Center" />
+            <TextBox Width="120" Text="{Binding Background}" />
+          </StackPanel>
+        </StackPanel>
+      </Expander>
+
+      <Button x:Name="ConvertButton" Content="Convert"
+              HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+              Padding="0,10" FontSize="15"
+              IsEnabled="{Binding CanConvert}" />
+
+      <ProgressBar Value="{Binding Progress}" Maximum="100" Height="6" Margin="0,12,0,6" />
+      <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,6,0,0" FontWeight="SemiBold" />
+
+      <ItemsControl ItemsSource="{Binding Failures}" Margin="0,10,0,0">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12" Opacity="0.85" Margin="0,0,0,3" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+    </StackPanel>
+  </ScrollViewer>
+</Window>

@@ -12,10 +12,11 @@ internal static class ConversionEngine
         IReadOnlyList<WorkItem> items,
         CliOptions options,
         IImageConverter converter,
-        ProgressReporter progress,
+        IProgressSink progress,
         CancellationToken cancellationToken)
     {
         ConcurrentBag<ConversionResult> results = [];
+        int completed = 0;
 
         using CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
@@ -32,7 +33,7 @@ internal static class ConversionEngine
                 ConversionResult result = await converter.ConvertAsync(item, options, token).ConfigureAwait(false);
 
                 results.Add(result);
-                progress.Report(Path.GetFileName(item.SourcePath));
+                progress.Report(Interlocked.Increment(ref completed), items.Count, Path.GetFileName(item.SourcePath));
 
                 if (result.Outcome == Outcome.Failed && options.StopOnError)
                 {

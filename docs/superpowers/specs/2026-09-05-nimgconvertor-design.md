@@ -438,6 +438,43 @@ visually indistinguishable, so AVIF's quality is capped there rather than the co
 being lost. Found by the test that converts into every common target, which started failing
 the moment the default moved.
 
+## The desktop window
+
+`img2imgUI` is an Avalonia application over the same engine. Avalonia was chosen after
+checking rather than by reputation: it builds on .NET 10, it is MIT licensed — this project
+has already lost a version to a dependency's licence terms — and it is the only mainstream
+option that reaches Linux, which .NET MAUI does not.
+
+A browser UI was considered and rejected on one fact: a browser cannot hand you a file path.
+Drag a folder onto a web page and you get file contents; `<input type=file>` reports
+`C:akepath\`. The friction this tool exists to remove — typing quoted paths to folders —
+is precisely what a browser cannot fix.
+
+### How the two front ends stay identical
+
+The window does not call the engine's internals directly. It fills in a `ConversionRequest`,
+turns that into an argument list, and hands it to the same parser the command line uses. Every
+default, validation rule and quirk therefore applies to both, and neither can drift.
+
+Underneath, `ConversionRun.ExecuteAsync` holds the orchestration both share — parse, validate,
+scan, convert — and returns a `RunOutcome` with nothing printed. The console front end renders
+it as a report; the window renders it as a summary and a list of failures.
+
+Progress reaches both through `IProgressSink`: the engine counts, a sink presents. The console
+implementation redraws a throttled line; the window updates a progress bar.
+
+### Structure
+
+Three projects, because an executable cannot reference another executable:
+`Narula.Image.Convertor` is the engine library, `.Cli` is `img2img.exe`, `.UI` is
+`img2imgUI.exe`. Running `img2img` with no arguments launches the window found beside it, and
+falls back to printing help when it is not there. That decision lives in the executable rather
+than the library, so nothing can spawn a process merely by calling the engine.
+
+`MainViewModel` holds the window's behaviour and references no Avalonia type, so it is tested
+without a display — including one test that converts real files through the same constructor
+the window uses.
+
 ## Packaging
 
 | Layout | Files | Size | Needs |

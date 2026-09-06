@@ -23,6 +23,19 @@ nImgConvertor -s .\photos -r -d .\converted -t jpg
 ──────────────────────────────────────────
 ```
 
+## The window
+
+Running `img2img` with no arguments opens `img2imgUI`, the desktop app. It is also fine to
+run `img2imgUI` directly.
+
+Drop a folder or an image onto it, choose a format, press Convert. That drop zone is the
+point of the app: it is what removes the need to type quoted paths, and it is the one thing
+a browser-based UI could not do — browsers withhold file paths by design.
+
+The window and the command line are the same program. The window builds an argument list and
+hands it to the same parser, so every default, rule and quirk applies identically to both,
+and neither can grow behaviour the other lacks.
+
 ## Options
 
 | Flag | Meaning |
@@ -41,6 +54,8 @@ nImgConvertor -s .\photos -r -d .\converted -t jpg
 | `-e` | Stop on the first failure instead of carrying on |
 | `-formats` | List every format that can be read and written |
 | `-h` | Help |
+
+Running with no options at all opens the window instead.
 
 Boolean flags take an explicit value: `-o false`, not a bare `-o`.
 
@@ -234,14 +249,20 @@ dotnet test
 Publish as a **single 26 MB file**, for a machine that has the .NET 10 runtime:
 
 ```bash
-dotnet publish src/Narula.Image.Convertor -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o publish/v2
+dotnet publish src/Narula.Image.Convertor.Cli -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o publish/v2
 ```
-
-Or **fully standalone at 97 MB**, for a machine with no .NET at all:
 
 ```bash
-dotnet publish src/Narula.Image.Convertor -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=none -o publish/v2
+dotnet publish src/Narula.Image.Convertor.UI -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o publish/v2
 ```
+
+Publishing both into the same folder gives two files — `img2img.exe` at 26 MB and
+`img2imgUI.exe` at 55 MB — and lets the command line find the window. Add
+`--self-contained true` to either for a machine with no .NET at all.
+
+The solution is three projects: `Narula.Image.Convertor` is the engine library,
+`.Cli` produces `img2img.exe`, and `.UI` produces `img2imgUI.exe`. Both executables call the
+same engine in-process, so there is one implementation of the conversion rules.
 
 Both produce exactly one `nImgConvertor.exe`. Without `-p:PublishSingleFile=true` you get
 around 190 loose files instead. `-p:DebugType=none` drops the `.pdb`.
