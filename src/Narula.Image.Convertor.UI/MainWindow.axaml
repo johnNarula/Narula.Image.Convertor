@@ -4,7 +4,7 @@
         x:Class="Narula.Image.Convertor.UI.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="Image to Image Convertor"
-        Width="760" Height="900"
+        Width="760" Height="950"
         MinWidth="660" MinHeight="640"
         WindowStartupLocation="CenterScreen"
         RequestedThemeVariant="Light"

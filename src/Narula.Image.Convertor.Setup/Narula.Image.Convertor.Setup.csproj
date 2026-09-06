@@ -30,14 +30,24 @@
     <None Include="README.md" />
   </ItemGroup>
 
-  <!-- The usual install paths, newest first. Override with -p:IsccPath=... for anywhere else. -->
+  <!--
+    Where Inno Setup ends up. The per-user location is first because that is what winget
+    installs by default, and it is easy to conclude the compiler is missing when it is simply
+    not in Program Files. Override with -p:IsccPath=... for anywhere else.
+  -->
   <PropertyGroup>
+    <IsccPath Condition="'$(IsccPath)' == '' And Exists('$(LOCALAPPDATA)\Programs\Inno Setup 6\ISCC.exe')">$(LOCALAPPDATA)\Programs\Inno Setup 6\ISCC.exe</IsccPath>
     <IsccPath Condition="'$(IsccPath)' == '' And Exists('$(MSBuildProgramFiles32)\Inno Setup 6\ISCC.exe')">$(MSBuildProgramFiles32)\Inno Setup 6\ISCC.exe</IsccPath>
     <IsccPath Condition="'$(IsccPath)' == '' And Exists('$(ProgramW6432)\Inno Setup 6\ISCC.exe')">$(ProgramW6432)\Inno Setup 6\ISCC.exe</IsccPath>
   </PropertyGroup>
 
   <Target Name="StageBinaries">
-    <RemoveDir Directories="$(StageDir)" />
+    <!--
+      Tolerated rather than required: this folder lives under OneDrive, and a sync or scan of a
+      just-written 57MB executable can hold it briefly. Publishing overwrites what matters, and
+      the count check below is what actually guarantees the folder holds only these two files.
+    -->
+    <RemoveDir Directories="$(StageDir)" ContinueOnError="WarnAndContinue" />
 
     <!--
       Both executables publish into the same folder, which is also how they must be installed:

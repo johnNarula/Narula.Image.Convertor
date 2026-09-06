@@ -95,7 +95,6 @@ const
   EnvironmentKey = 'Environment';
 
 var
-  DownloadPage: TDownloadWizardPage;
   DotNetChecked: Boolean;
   DotNetMissing: Boolean;
 
@@ -134,37 +133,28 @@ begin
   Result := DotNetMissing;
 end;
 
-procedure InitializeWizard;
-begin
-  DownloadPage := CreateDownloadPage(
-    SetupMessage(msgWizardPreparing),
-    'Downloading the .NET runtime this program needs',
-    nil);
-end;
-
-function NextButtonClick(CurPageID: Integer): Boolean;
+function OnDownloadProgress(const Url, FileName: String; const Progress, ProgressMax: Int64): Boolean;
 begin
   Result := True;
+end;
 
-  if (CurPageID = wpReady) and NeedsDotNet then
-  begin
-    DownloadPage.Clear;
-    DownloadPage.Add(RuntimeUrl, 'dotnet-runtime.exe', '');
-    DownloadPage.Show;
-    try
-      try
-        DownloadPage.Download;
-      except
-        SuppressibleMsgBox(
-          'The .NET runtime could not be downloaded.' + #13#10#13#10 +
-          GetExceptionMessage + #13#10#13#10 +
-          'Install .NET 10 from https://dotnet.microsoft.com/download and run this setup again.',
-          mbCriticalError, MB_OK, IDOK);
-        Result := False;
-      end;
-    finally
-      DownloadPage.Hide;
-    end;
+{ Fetched here rather than from the wizard, because PrepareToInstall runs for a silent install
+  too. Doing it on the Ready page would have left /VERYSILENT quietly installing a program that
+  cannot start. }
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  Result := '';
+
+  if not NeedsDotNet then
+    Exit;
+
+  try
+    DownloadTemporaryFile(RuntimeUrl, 'dotnet-runtime.exe', '', @OnDownloadProgress);
+  except
+    Result :=
+      'The .NET runtime could not be downloaded.' + #13#10#13#10 +
+      GetExceptionMessage + #13#10#13#10 +
+      'Install .NET 10 from https://dotnet.microsoft.com/download and run this setup again.';
   end;
 end;
 
