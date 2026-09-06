@@ -306,7 +306,7 @@ public class MainViewModelTests
     }
 
     [Fact]
-    public void Cancel_is_only_available_while_a_run_is_in_flight()
+    public async Task Cancel_is_only_available_while_a_run_is_in_flight()
     {
         TaskCompletionSource gate = new();
 
@@ -328,7 +328,7 @@ public class MainViewModelTests
         Assert.False(model.CanConvert);
 
         gate.SetResult();
-        running.Wait(TimeSpan.FromSeconds(5));
+        await running.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.False(model.CanCancel);
         Assert.True(model.IsIdle);
