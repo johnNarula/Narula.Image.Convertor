@@ -54,12 +54,12 @@ public class ConversionTests
         Assert.Equal(Outcome.Converted, result.Outcome);
         Assert.Equal("resized to fit ico", result.Reason);
 
-        // The largest entry fills the 256 box, keeping the source's 8:5 ratio.
+        // The largest entry is a square 256 box; the 8:5 picture sits inside it.
         using MagickImageCollection entries = new(workspace.InDestination("huge.ico"));
         IMagickImage<byte> largest = entries.OrderByDescending(e => e.Width).First();
 
         Assert.Equal(256u, largest.Width);
-        Assert.Equal(160u, largest.Height);
+        Assert.Equal(256u, largest.Height);
     }
 
     [Fact]
@@ -76,11 +76,11 @@ public class ConversionTests
         IMagickImage<byte> largest = entries.OrderByDescending(e => e.Height).First();
 
         Assert.Equal(256u, largest.Height);
-        Assert.Equal(51u, largest.Width);
+        Assert.Equal(256u, largest.Width);
     }
 
     [Fact]
-    public async Task An_image_within_the_target_limit_is_left_at_its_size()
+    public async Task An_image_already_within_the_cap_is_not_reported_as_resized()
     {
         using TestWorkspace workspace = new();
         workspace.WriteLargeJpeg("small-enough.jpg", 200, 256);
@@ -93,7 +93,8 @@ public class ConversionTests
         using MagickImageCollection entries = new(workspace.InDestination("small-enough.ico"));
         IMagickImage<byte> largest = entries.OrderByDescending(e => e.Height).First();
 
-        Assert.Equal(200u, largest.Width);
+        // Squared up to 256, but the picture inside was never scaled down.
+        Assert.Equal(256u, largest.Width);
         Assert.Equal(256u, largest.Height);
     }
 

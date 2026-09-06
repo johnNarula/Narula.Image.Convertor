@@ -143,9 +143,10 @@ file does not contain fails with a list of what it does hold.
 `.ico` — 16, 32, 48, 64, 128 and 256. Sizes larger than the source are skipped rather than
 upscaled, and `-iconsize 48` narrows the output to that one size.
 
-Entries keep the source's aspect ratio, so a 3:4 photo becomes 144x256, 72x128 and so on
-rather than being cropped or padded to squares. Icons are capped at 256 because an ICO
-directory entry stores each dimension in a single byte.
+Entries are square, as icons should be. The picture is fitted inside the box at its own
+aspect ratio and the remainder is padded transparent — nothing is cropped away. With
+`-trans false` the padding takes the `-bg` colour instead. Icons are capped at 256 because
+an ICO directory entry stores each dimension in a single byte.
 
 ## If it cannot create the destination folder
 

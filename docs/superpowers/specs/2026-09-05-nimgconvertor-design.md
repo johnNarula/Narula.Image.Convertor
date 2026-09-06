@@ -405,9 +405,11 @@ sizes it does hold, rather than falling back to something the user did not ask f
 conventional size the source can supply (16, 32, 48, 64, 128, 256), skipping any larger
 than the source rather than upscaling into blur. `-iconsize` narrows it to one.
 
-Entries preserve the source's aspect ratio rather than being cropped or padded to squares:
-cropping discards image the user did not ask to lose, and padding invents border colour.
-A 3:4 photo therefore yields 144x256, 72x128 and so on, which ICO permits.
+Entries are square. The picture is fitted inside the box at its own aspect ratio and the
+remainder padded transparent, so nothing is cropped away and no border colour is invented:
+a 3024x4032 photo becomes a 192x256 picture centred in a 256x256 entry with transparent
+columns either side. When `-trans false` asks for transparency to be flattened, the padding
+takes the matte colour instead, since transparent padding would contradict the request.
 
 `-iconsize` is deliberately restricted to the six conventional sizes. Arbitrary values
 would make it a general resize flag, which remains a non-goal.

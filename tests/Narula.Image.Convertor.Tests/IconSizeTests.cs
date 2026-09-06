@@ -138,7 +138,7 @@ public class IconSizeTests
     }
 
     [Fact]
-    public async Task A_non_square_source_keeps_its_ratio_in_every_entry()
+    public async Task A_non_square_source_is_padded_to_square()
     {
         using TestWorkspace workspace = new();
         workspace.WriteLargeJpeg("wide.jpg", 1000, 500);
@@ -149,9 +149,44 @@ public class IconSizeTests
 
         foreach (IMagickImage<byte> entry in entries)
         {
-            Assert.Equal(2.0, (double)entry.Width / entry.Height, 1);
-            Assert.True(entry.Width <= 256 && entry.Height <= 256);
+            Assert.Equal(entry.Width, entry.Height);
+            Assert.True(entry.Width <= 256);
         }
+    }
+
+    [Fact]
+    public async Task The_padding_on_a_squared_icon_is_transparent()
+    {
+        using TestWorkspace workspace = new();
+        workspace.WriteLargeJpeg("wide.jpg", 1000, 500);
+
+        await ConvertAsync(workspace, "wide.jpg", "ico");
+
+        using MagickImageCollection entries = new(workspace.InDestination("wide.ico"));
+        IMagickImage<byte> largest = entries.OrderByDescending(e => e.Width).First();
+
+        // A 2:1 source in a 256 box leaves 64 rows of padding top and bottom.
+        Assert.Equal(0, largest.GetPixels().GetPixel(128, 4).ToColor()!.A);
+        Assert.Equal(0, largest.GetPixels().GetPixel(128, 252).ToColor()!.A);
+
+        // The picture itself is untouched in the middle.
+        Assert.Equal(255, largest.GetPixels().GetPixel(128, 128).ToColor()!.A);
+    }
+
+    [Fact]
+    public async Task Trans_false_pads_with_the_matte_colour_instead()
+    {
+        using TestWorkspace workspace = new();
+        workspace.WriteLargeJpeg("wide.jpg", 1000, 500);
+
+        await ConvertAsync(workspace, "wide.jpg", "ico", "-trans", "false", "-bg", "#FF0000");
+
+        using MagickImageCollection entries = new(workspace.InDestination("wide.ico"));
+        IMagickImage<byte> largest = entries.OrderByDescending(e => e.Width).First();
+
+        IMagickColor<byte> corner = largest.GetPixels().GetPixel(128, 4).ToColor()!;
+        Assert.Equal(255, corner.A);
+        Assert.True(corner.R > 200 && corner.G < 60, $"expected the matte colour, got {corner.ToHexString()}");
     }
 
     [Fact]

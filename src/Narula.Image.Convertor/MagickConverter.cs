@@ -174,12 +174,27 @@ internal sealed class MagickConverter : IImageConverter
             wanted = [CliOptions.IconSizes[0]];
         }
 
+        // Icons are square. Fit the picture inside the box and pad the remainder rather than
+        // cropping, so nothing is lost; the padding is transparent unless the run asked for
+        // transparency to be flattened, in which case it takes the matte colour.
+        IMagickColor<byte> padding = options.PreserveTransparency ? MagickColors.Transparent : options.Background;
+
         using MagickImageCollection entries = [];
 
         foreach (int size in wanted)
         {
             IMagickImage<byte> entry = source.Clone();
+
             entry.Resize(new MagickGeometry((uint)size, (uint)size) { Greater = true });
+
+            if (options.PreserveTransparency)
+            {
+                entry.Alpha(AlphaOption.Set);
+            }
+
+            entry.BackgroundColor = padding;
+            entry.Extent(new MagickGeometry((uint)size, (uint)size), Gravity.Center);
+
             entry.Format = _target;
             entries.Add(entry);
         }
