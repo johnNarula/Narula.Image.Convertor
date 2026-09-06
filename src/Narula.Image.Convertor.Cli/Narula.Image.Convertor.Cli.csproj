@@ -16,6 +16,12 @@
     <PublishTrimmed>false</PublishTrimmed>
     <!-- Measured: R2R changed startup by 1ms here (single-file extraction dominates) and cost 12MB. -->
     <PublishReadyToRun>false</PublishReadyToRun>
+    <!-- Publish defaults: framework-dependent and single file, so a publish drops one
+         executable rather than a folder of hundreds. Add -p:SelfContained=true only for a
+         machine with no .NET runtime. -->
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <DebugType>none</DebugType>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -25,11 +31,21 @@
     <Company>9thAct LLC</Company>
     <Copyright>2026 Copyright © 9th Act, LLC</Copyright>
     <Title>Image to Image Convertor</Title>
-    <Version>2.0.0</Version>
+    <Version>2.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Narula.Image.Convertor\Narula.Image.Convertor.csproj" />
   </ItemGroup>
+
+  <!--
+    DebugType=none silences this project's own symbols, but a referenced project still
+    contributes its .pdb to the publish set. Drop them so a publish is executables only.
+  -->
+  <Target Name="DropSymbols" AfterTargets="ComputeFilesToPublish">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
 
 </Project>

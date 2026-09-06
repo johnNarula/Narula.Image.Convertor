@@ -258,19 +258,24 @@ Requires the .NET 10 SDK.
 dotnet test
 ```
 
-Publish as a **single 26 MB file**, for a machine that has the .NET 10 runtime:
+Publishing needs no flags beyond the platform — framework-dependent and single-file are the
+project defaults, so each publish drops exactly one executable:
 
 ```bash
-dotnet publish src/Narula.Image.Convertor.Cli -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o publish/v2
+dotnet publish src/Narula.Image.Convertor.Cli -c Release -r win-x64 -o publish/v2
 ```
 
 ```bash
-dotnet publish src/Narula.Image.Convertor.UI -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o publish/v2
+dotnet publish src/Narula.Image.Convertor.UI -c Release -r win-x64 -o publish/v2
 ```
 
-Publishing both into the same folder gives two files — `img2img.exe` at 26 MB and
-`img2imgUI.exe` at 55 MB — and lets the command line find the window. Add
-`--self-contained true` to either for a machine with no .NET at all.
+Into the same folder that gives two files — `img2img.exe` at 26 MB and `img2imgUI.exe` at
+55 MB — and lets the command line find the window. Both need the .NET 10 runtime, which is
+why they are this small; add `-p:SelfContained=true` for a machine without it, at roughly
+four times the size.
+
+Swap the platform for elsewhere: `-r linux-x64`, `-r linux-musl-x64` for Alpine, `-r osx-arm64`
+or `-r osx-x64`. A binary built on Windows arrives without the execute bit, so `chmod +x` it.
 
 The solution is three projects: `Narula.Image.Convertor` is the engine library,
 `.Cli` produces `img2img.exe`, and `.UI` produces `img2imgUI.exe`. Both executables call the

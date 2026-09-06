@@ -493,6 +493,11 @@ the window uses.
 | Self-contained, single file | 1 | 97 MB | nothing |
 | Self-contained, not single file | ~190 | 108 MB | nothing |
 
+Framework-dependent single file is set in the project files rather than passed on the command
+line, so a publish cannot accidentally produce the folder-of-hundreds layout and no one has to
+remember flags. Referenced projects still contribute their `.pdb` to the publish set, so both
+executables drop symbols explicitly at publish time; the result is exactly one file each.
+
 The framework-dependent single file is the documented default: the runtime is already
 present wherever the tool is built, and 26 MB against 97 MB is worth more than portability
 that is not being used. `-p:DebugType=none` removes the `.pdb`, leaving exactly one file.

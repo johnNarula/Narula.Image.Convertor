@@ -13,6 +13,12 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <ApplicationIcon>..\Narula.Image.Convertor\icon.ico</ApplicationIcon>
     <PublishTrimmed>false</PublishTrimmed>
+    <!-- Publish defaults: framework-dependent and single file, so a publish drops one
+         executable rather than a folder of hundreds. Add -p:SelfContained=true only for a
+         machine with no .NET runtime. -->
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <DebugType>none</DebugType>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 
@@ -22,7 +28,7 @@
     <Authors>John Narula</Authors>
     <Company>9thAct LLC</Company>
     <Copyright>2026 Copyright © 9th Act, LLC</Copyright>
-    <Version>2.0.0</Version>
+    <Version>2.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
