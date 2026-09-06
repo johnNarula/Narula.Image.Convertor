@@ -23,6 +23,7 @@ internal sealed class MainViewModel : INotifyPropertyChanged
     private bool _preserveTransparency = Defaults.Current.PreserveTransparency;
     private bool _preserveMetadata = Defaults.Current.PreserveMetadata;
     private string _background = Defaults.Current.Background;
+    private string _sourceFilter = AllTypes;
     private int? _iconSize;
     private bool _running;
     private double _progress;
@@ -39,13 +40,36 @@ internal sealed class MainViewModel : INotifyPropertyChanged
     {
         _run = run;
 
-        Targets = [.. new[] { "jpg", "png", "webp", "avif", "tiff", "bmp", "gif", "ico", "jxl", "pdf" }];
+        // Everything that can actually be written, with the everyday ones first so the list is
+        // useful before a single character is typed.
+        string[] common = ["jpg", "png", "webp", "avif", "tiff", "bmp", "gif", "ico", "jxl", "pdf"];
+        List<(string Name, string Description)> writable = [.. ImageFormats.WritableFormats()];
+
+        Targets =
+        [
+            .. common.Where(c => writable.Any(w => w.Name == c)),
+            .. writable.Select(w => w.Name).Where(n => !common.Contains(n)),
+        ];
+
+        SourceFilters = [AllTypes, .. FileScanner.KnownImageExtensions];
         IconSizes = [.. CliOptions.IconSizes];
     }
+
+    /// <summary>The filter entry meaning "do not narrow by extension".</summary>
+    public const string AllTypes = "All Supported Image Types";
 
     public ObservableCollection<string> Targets { get; }
 
     public ObservableCollection<int> IconSizes { get; }
+
+    public ObservableCollection<string> SourceFilters { get; }
+
+    /// <summary>Narrows a folder scan to one extension, by turning the source into a glob.</summary>
+    public string SourceFilter
+    {
+        get => _sourceFilter;
+        set => Set(ref _sourceFilter, string.IsNullOrWhiteSpace(value) ? AllTypes : value);
+    }
 
     public ObservableCollection<string> Failures { get; } = [];
 
@@ -81,9 +105,10 @@ internal sealed class MainViewModel : INotifyPropertyChanged
         get => _target;
         set
         {
-            if (Set(ref _target, value))
+            if (Set(ref _target, value ?? string.Empty))
             {
                 Notify(nameof(CanConvert));
+                Notify(nameof(TargetDescription));
                 Notify(nameof(DestinationHint));
                 Notify(nameof(IconSizeApplies));
                 Notify(nameof(QualityApplies));
@@ -117,7 +142,7 @@ internal sealed class MainViewModel : INotifyPropertyChanged
     public string Status { get => _status; private set => Set(ref _status, value); }
     public string Summary { get => _summary; private set => Set(ref _summary, value); }
 
-    public bool CanConvert => !Running && !string.IsNullOrWhiteSpace(Source) && !string.IsNullOrWhiteSpace(Target);
+    public bool CanConvert => !Running && !string.IsNullOrWhiteSpace(Source) && TargetIsWritable;
 
     /// <summary>Icon sizes only mean something when an icon is on one end of the conversion.</summary>
     public bool IconSizeApplies =>
@@ -125,6 +150,12 @@ internal sealed class MainViewModel : INotifyPropertyChanged
         Source.EndsWith(".ico", StringComparison.OrdinalIgnoreCase);
 
     public bool QualityApplies => !Target.Equals("png", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>ImageMagick's own words for the chosen format, shown under the picker.</summary>
+    public string TargetDescription => ImageFormats.Describe(Target) ?? string.Empty;
+
+    /// <summary>False while the typed target is not a format anything can write.</summary>
+    public bool TargetIsWritable => ImageFormats.ResolveTarget(Target) is not null;
 
     /// <summary>Shows where output will land, so nobody has to guess what the default does.</summary>
     public string DestinationHint
@@ -146,9 +177,18 @@ internal sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// The source as the engine should see it. A filter on a folder becomes a glob, which the
+    /// engine already understands as "only these names, and honour that extension explicitly".
+    /// </summary>
+    public string EffectiveSource =>
+        SourceFilter != AllTypes && Directory.Exists(Source)
+            ? Path.Combine(Source, "*" + SourceFilter)
+            : Source;
+
     public ConversionRequest BuildRequest() => new()
     {
-        Source = Source,
+        Source = EffectiveSource,
         Destination = string.IsNullOrWhiteSpace(Destination) ? null : Destination,
         Target = Target,
         Recursive = Recursive,

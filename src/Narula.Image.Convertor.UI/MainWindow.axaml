@@ -4,51 +4,90 @@
         x:Class="Narula.Image.Convertor.UI.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="Image to Image Convertor"
-        Width="720" Height="640"
-        MinWidth="620" MinHeight="560">
+        Width="760" Height="780"
+        MinWidth="660" MinHeight="600"
+        RequestedThemeVariant="Light"
+        Background="#FBFCFE">
 
+  <!--
+    The palette is the application icon's: indigo, violet and amber, at pastel strength so the
+    cards read as sections rather than decoration. The window is pinned to the light variant
+    because these tints are chosen against a light ground and would be wrong inverted.
+  -->
   <Window.Styles>
     <Style Selector="TextBlock.label">
-      <Setter Property="Opacity" Value="0.7" />
-      <Setter Property="FontSize" Value="12" />
-      <Setter Property="Margin" Value="0,0,0,4" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#6B6B86" />
+      <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+    <Style Selector="TextBlock.hint">
+      <Setter Property="FontSize" Value="11.5" />
+      <Setter Property="Foreground" Value="#77778F" />
+      <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
     <Style Selector="Border.card">
-      <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundListLowBrush}" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="13" />
+      <Setter Property="Margin" Value="0,0,0,9" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="#4F46E5" />
+      <Setter Property="Foreground" Value="White" />
       <Setter Property="CornerRadius" Value="8" />
-      <Setter Property="Padding" Value="14" />
-      <Setter Property="Margin" Value="0,0,0,12" />
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#4338CA" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.primary:disabled /template/ ContentPresenter">
+      <Setter Property="Background" Value="#D9D8EC" />
+      <Setter Property="Foreground" Value="#8E8DA8" />
     </Style>
   </Window.Styles>
 
   <ScrollViewer Padding="18">
     <StackPanel>
 
-      <!-- Source: dropping a folder is the whole point; typing paths is what we are replacing. -->
-      <Border Classes="card">
+      <!-- Source. Dropping a folder is the point: it is what a browser UI could never do. -->
+      <Border Classes="card" Background="#EFF3FF" BorderBrush="#D7E0FB">
         <StackPanel>
           <TextBlock Classes="label" Text="SOURCE" />
-          <Border x:Name="DropZone"
-                  BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-                  CornerRadius="6" Padding="16" Margin="0,0,0,8">
+          <Border x:Name="DropZone" Background="#FFFFFF"
+                  BorderThickness="1" BorderBrush="#C7D4F7"
+                  CornerRadius="8" Padding="13" Margin="0,0,0,8">
             <TextBlock x:Name="SourceText" Text="Drop a folder or image here" TextWrapping="Wrap" />
           </Border>
-          <StackPanel Orientation="Horizontal" Spacing="8">
+
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,10">
             <Button x:Name="BrowseFolder" Content="Choose folder..." />
             <Button x:Name="BrowseFile" Content="Choose file..." />
             <CheckBox Content="Include subfolders" IsChecked="{Binding Recursive}" VerticalAlignment="Center" />
           </StackPanel>
+
+          <TextBlock Classes="label" Text="ONLY THESE FILES" Margin="0,2,0,6" />
+          <ComboBox x:Name="FilterBox" Width="260"
+                    ItemsSource="{Binding SourceFilters}"
+                    SelectedItem="{Binding SourceFilter}" />
         </StackPanel>
       </Border>
 
-      <Border Classes="card">
+      <!-- Convert to. Typing filters the list, which matters at nearly two hundred formats. -->
+      <Border Classes="card" Background="#F6F0FF" BorderBrush="#E2D5FB">
         <StackPanel>
           <TextBlock Classes="label" Text="CONVERT TO" />
-          <StackPanel Orientation="Horizontal" Spacing="12">
-            <ComboBox x:Name="TargetBox" Width="130"
-                      ItemsSource="{Binding Targets}"
-                      SelectedItem="{Binding Target}" />
-            <StackPanel Orientation="Horizontal" Spacing="6"
+          <StackPanel Orientation="Horizontal" Spacing="14">
+            <AutoCompleteBox x:Name="TargetBox" Width="170"
+                             ItemsSource="{Binding Targets}"
+                             Text="{Binding Target}"
+                             FilterMode="Contains"
+                             MinimumPrefixLength="0"
+                             IsTextCompletionEnabled="True"
+                             Watermark="type to filter" />
+            <StackPanel Orientation="Horizontal" Spacing="8"
                         IsVisible="{Binding QualityApplies}" VerticalAlignment="Center">
               <TextBlock Text="Quality" VerticalAlignment="Center" />
               <Slider Width="180" Minimum="1" Maximum="100" Value="{Binding Quality}"
@@ -56,7 +95,10 @@
               <TextBlock Text="{Binding Quality}" Width="30" VerticalAlignment="Center" />
             </StackPanel>
           </StackPanel>
-          <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0"
+
+          <TextBlock Classes="hint" Text="{Binding TargetDescription}" Margin="2,8,0,0" />
+
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0"
                       IsVisible="{Binding IconSizeApplies}">
             <TextBlock Text="Icon size" VerticalAlignment="Center" />
             <ComboBox x:Name="IconSizeBox" Width="120" ItemsSource="{Binding IconSizes}"
@@ -66,10 +108,10 @@
         </StackPanel>
       </Border>
 
-      <Border Classes="card">
+      <Border Classes="card" Background="#EDF9F2" BorderBrush="#CEEBDC">
         <StackPanel>
           <TextBlock Classes="label" Text="DESTINATION" />
-          <TextBlock Text="{Binding DestinationHint}" TextWrapping="Wrap" Margin="0,0,0,8" />
+          <TextBlock Text="{Binding DestinationHint}" TextWrapping="Wrap" Margin="0,0,0,10" />
           <StackPanel Orientation="Horizontal" Spacing="8">
             <Button x:Name="BrowseDestination" Content="Choose folder..." />
             <Button x:Name="ClearDestination" Content="Use default" />
@@ -77,31 +119,36 @@
         </StackPanel>
       </Border>
 
-      <Expander Header="More options" Margin="0,0,0,12">
-        <StackPanel Spacing="8" Margin="0,8,0,0">
-          <CheckBox Content="Overwrite files already in the destination" IsChecked="{Binding Overwrite}" />
-          <CheckBox Content="Keep transparency where the format allows" IsChecked="{Binding PreserveTransparency}" />
+      <Border Classes="card" Background="#FFF8EC" BorderBrush="#F5E3C4">
+        <StackPanel Spacing="7">
+          <TextBlock Classes="label" Text="OPTIONS" />
+          <CheckBox Content="When applicable, retain transparency" IsChecked="{Binding PreserveTransparency}" />
           <CheckBox Content="Keep EXIF and colour profiles" IsChecked="{Binding PreserveMetadata}" />
+          <CheckBox Content="Overwrite files already in the destination" IsChecked="{Binding Overwrite}" />
           <StackPanel Orientation="Horizontal" Spacing="8">
             <TextBlock Text="Background when flattening" VerticalAlignment="Center" />
             <TextBox Width="120" Text="{Binding Background}" />
           </StackPanel>
+          <TextBlock Classes="hint"
+                     Text="Transparency is flattened onto that colour when the chosen format cannot hold it, such as JPEG." />
         </StackPanel>
-      </Expander>
+      </Border>
 
-      <Button x:Name="ConvertButton" Content="Convert"
+      <Button x:Name="ConvertButton" Classes="primary" Content="Convert"
               HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-              Padding="0,10" FontSize="15"
-              IsEnabled="{Binding CanConvert}" />
+              Padding="0,11" IsEnabled="{Binding CanConvert}" />
 
-      <ProgressBar Value="{Binding Progress}" Maximum="100" Height="6" Margin="0,12,0,6" />
+      <ProgressBar Value="{Binding Progress}" Maximum="100" Height="6"
+                   Margin="0,14,0,8" Foreground="#7C3AED" />
       <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
-      <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,6,0,0" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" Margin="0,6,0,0"
+                 FontWeight="SemiBold" Foreground="#3F3D63" />
 
       <ItemsControl ItemsSource="{Binding Failures}" Margin="0,10,0,0">
         <ItemsControl.ItemTemplate>
           <DataTemplate>
-            <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12" Opacity="0.85" Margin="0,0,0,3" />
+            <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12"
+                       Foreground="#B23B3B" Margin="0,0,0,3" />
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>

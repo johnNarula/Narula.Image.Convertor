@@ -95,6 +95,28 @@ internal static class ImageFormats
         _ => null,
     };
 
+    /// <summary>Every format that can be written, as name and ImageMagick's own description.</summary>
+    public static IReadOnlyList<(string Name, string Description)> WritableFormats() =>
+    [
+        .. MagickNET.SupportedFormats
+            .Where(f => f.SupportsWriting)
+            .Select(f => (Name: f.Format.ToString().ToLowerInvariant(), f.Description))
+            .Where(f => !string.IsNullOrWhiteSpace(f.Description))
+            .DistinctBy(f => f.Name)
+            .OrderBy(f => f.Name, StringComparer.Ordinal),
+    ];
+
+    /// <summary>ImageMagick's description of a format, or null when it does not know the name.</summary>
+    public static string? Describe(string type)
+    {
+        if (!Enum.TryParse(type, ignoreCase: true, out MagickFormat format))
+        {
+            return null;
+        }
+
+        return MagickFormatInfo.Create(format)?.Description;
+    }
+
     /// <summary>The -formats listing: what can be read, what can be written.</summary>
     public static void WriteListing(TextWriter writer)
     {

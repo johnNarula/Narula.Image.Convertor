@@ -36,6 +36,10 @@ internal static class FileScanner
         ".wbmp", ".fits", ".fts", ".miff", ".mng", ".jng", ".jbig", ".jbg",
     };
 
+    /// <summary>The extensions a folder scan accepts, for anything offering the user a filter.</summary>
+    public static IReadOnlyList<string> KnownImageExtensions { get; } =
+        [.. ImageExtensions.Order(StringComparer.Ordinal)];
+
     private static readonly StringComparison PathComparison =
         OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 

@@ -145,6 +145,86 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void Every_writable_format_is_offered_with_the_common_ones_first()
+    {
+        MainViewModel model = Model();
+
+        // Nearly two hundred, not a hand-picked ten.
+        Assert.True(model.Targets.Count > 150, $"only {model.Targets.Count} targets offered");
+        Assert.Equal("jpg", model.Targets[0]);
+        Assert.Contains("avif", model.Targets);
+        Assert.Contains("jxl", model.Targets);
+
+        // Nothing offered that cannot actually be written.
+        Assert.DoesNotContain("heic", model.Targets);
+    }
+
+    [Fact]
+    public void The_chosen_format_is_described_in_the_library_own_words()
+    {
+        MainViewModel model = Model();
+
+        model.Target = "jpg";
+        Assert.Contains("Joint Photographic", model.TargetDescription);
+
+        model.Target = "avif";
+        Assert.Contains("AV1", model.TargetDescription);
+    }
+
+    [Fact]
+    public void A_half_typed_format_cannot_be_converted()
+    {
+        MainViewModel model = Model();
+        model.Source = @"C:\photos";
+
+        model.Target = "jp";
+        Assert.False(model.TargetIsWritable);
+        Assert.False(model.CanConvert);
+        Assert.Equal(string.Empty, model.TargetDescription);
+
+        model.Target = "jpg";
+        Assert.True(model.CanConvert);
+    }
+
+    [Fact]
+    public void The_source_filter_defaults_to_everything_and_narrows_to_a_glob()
+    {
+        using TestWorkspace workspace = new();
+        MainViewModel model = Model();
+        model.Source = workspace.Source;
+
+        Assert.Equal(MainViewModel.AllTypes, model.SourceFilter);
+        Assert.Equal(workspace.Source, model.EffectiveSource);
+        Assert.Contains(".heic", model.SourceFilters);
+        Assert.Contains(".jpg", model.SourceFilters);
+
+        model.SourceFilter = ".png";
+        Assert.Equal(Path.Combine(workspace.Source, "*.png"), model.EffectiveSource);
+    }
+
+    [Fact]
+    public async Task The_source_filter_really_narrows_what_gets_converted()
+    {
+        using TestWorkspace workspace = new();
+        workspace.WritePng("one.png");
+        workspace.WriteJpeg("two.jpg", 90);
+        workspace.WriteJpeg("three.jpg", 90);
+
+        MainViewModel model = new()
+        {
+            Source = workspace.Source,
+            Destination = workspace.Destination,
+            Target = "webp",
+            SourceFilter = ".jpg",
+        };
+
+        await model.ConvertAsync();
+
+        Assert.Contains("2 converted", model.Summary);
+        Assert.False(File.Exists(workspace.InDestination("one.webp")));
+    }
+
+    [Fact]
     public async Task The_window_converts_real_files_through_the_real_engine()
     {
         using TestWorkspace workspace = new();

@@ -450,6 +450,27 @@ Drag a folder onto a web page and you get file contents; `<input type=file>` rep
 `C:akepath\`. The friction this tool exists to remove — typing quoted paths to folders —
 is precisely what a browser cannot fix.
 
+### What the window shows
+
+The format picker offers all 197 writable formats rather than a hand-picked ten, filtering as
+the user types, because a list that long is unusable otherwise and a shorter one silently hides
+what the tool can do. The everyday formats sort first so the list is useful before a character
+is typed, and ImageMagick's own description of the selected format sits underneath in smaller
+type. A half-typed format disables Convert rather than failing later.
+
+The source carries an "only these files" filter defaulting to all supported image types. Choosing
+an extension turns the source into a glob, which the engine already understands as "only these
+names, and honour that extension explicitly" -- no new concept in the engine.
+
+Transparency, metadata and overwrite are on the main surface rather than behind an expander.
+They were originally collapsed, which meant a user looking for transparency concluded it was
+missing; an option nobody can find is an option that does not exist.
+
+The palette is the application icon's indigo, violet and amber at pastel strength, with the
+theme accent retinted to match so checkboxes and sliders do not arrive in whatever colour
+Windows is set to. The window is pinned to the light variant because the tints are chosen
+against a light ground.
+
 ### How the two front ends stay identical
 
 The window does not call the engine's internals directly. It fills in a `ConversionRequest`,

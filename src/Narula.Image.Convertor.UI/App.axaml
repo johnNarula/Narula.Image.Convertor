@@ -2,6 +2,16 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Narula.Image.Convertor.UI.App"
              RequestedThemeVariant="Default">
+  <Application.Resources>
+    <Color x:Key="SystemAccentColor">#4F46E5</Color>
+    <Color x:Key="SystemAccentColorLight1">#6366F1</Color>
+    <Color x:Key="SystemAccentColorLight2">#818CF8</Color>
+    <Color x:Key="SystemAccentColorLight3">#A5B4FC</Color>
+    <Color x:Key="SystemAccentColorDark1">#4338CA</Color>
+    <Color x:Key="SystemAccentColorDark2">#3730A3</Color>
+    <Color x:Key="SystemAccentColorDark3">#312E81</Color>
+  </Application.Resources>
+
   <Application.Styles>
     <FluentTheme />
   </Application.Styles>
