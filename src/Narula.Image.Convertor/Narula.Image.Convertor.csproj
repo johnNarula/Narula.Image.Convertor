@@ -4,7 +4,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
-    <AssemblyName>nImgConvertor</AssemblyName>
+    <AssemblyName>img2img</AssemblyName>
     <RootNamespace>Narula.Image.Convertor</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -19,12 +19,13 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <Product>nImgConvertor</Product>
+    <Product>Image to Image Convertor</Product>
     <Description>Batch image format conversion from the command line.</Description>
     <Authors>John Narula</Authors>
-    <Company>Narula</Company>
-    <Copyright>Copyright © John Narula</Copyright>
+    <Company>9thAct LLC</Company>
+    <Copyright>2026 Copyright © 9th Act, LLC</Copyright>
     <Version>2.0.0</Version>
+    <Title>Image to Image Convertor</Title>
   </PropertyGroup>
 
   <ItemGroup>
