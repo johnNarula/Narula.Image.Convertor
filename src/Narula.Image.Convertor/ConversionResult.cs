@@ -31,6 +31,12 @@ internal readonly record struct ConversionResult(
     public static ConversionResult Skipped(WorkItem item, string reason) =>
         new(item, Outcome.Skipped, reason, 0, 0);
 
+    /// <summary>
+    /// Reason used for every write the operating system refused, so the run can offer one
+    /// explanation at the end rather than repeating it per file.
+    /// </summary>
+    public const string PermissionDenied = "write refused by the system";
+
     public static ConversionResult Failed(WorkItem item, string reason) =>
         new(item, Outcome.Failed, reason, 0, 0);
 }

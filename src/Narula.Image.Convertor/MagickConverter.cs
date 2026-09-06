@@ -13,6 +13,7 @@ internal sealed class MagickConverter : IImageConverter
     private readonly bool _targetKeepsAlpha;
     private readonly bool _targetKeepsFrames;
     private readonly int? _targetMaxDimension;
+    private readonly bool _targetIsIcon;
 
     /// <summary>Format capabilities are settled once here rather than per file.</summary>
     public MagickConverter(CliOptions options)
@@ -21,6 +22,7 @@ internal sealed class MagickConverter : IImageConverter
         _targetKeepsAlpha = ImageFormats.SupportsAlpha(_target);
         _targetKeepsFrames = ImageFormats.SupportsMultipleFrames(_target);
         _targetMaxDimension = ImageFormats.MaxDimension(_target);
+        _targetIsIcon = ImageFormats.Canonical(_target) is MagickFormat.Ico or MagickFormat.Cur;
     }
 
     public async ValueTask<ConversionResult> ConvertAsync(WorkItem item, CliOptions options, CancellationToken cancellationToken)
@@ -76,15 +78,20 @@ internal sealed class MagickConverter : IImageConverter
             TryDeleteTemp(temporaryPath);
             return ConversionResult.Failed(item, "unsupported format");
         }
+        catch (IconSizeNotFoundException exception)
+        {
+            TryDeleteTemp(temporaryPath);
+            return ConversionResult.Failed(item, exception.Message);
+        }
+        catch (Exception exception) when (IsPermissionRefusal(exception))
+        {
+            TryDeleteTemp(temporaryPath);
+            return ConversionResult.Failed(item, ConversionResult.PermissionDenied);
+        }
         catch (MagickException exception)
         {
             TryDeleteTemp(temporaryPath);
             return ConversionResult.Failed(item, Clean(exception.Message));
-        }
-        catch (UnauthorizedAccessException)
-        {
-            TryDeleteTemp(temporaryPath);
-            return ConversionResult.Failed(item, "access denied");
         }
         catch (Exception exception)
         {
@@ -101,6 +108,24 @@ internal sealed class MagickConverter : IImageConverter
     private bool Encode(WorkItem item, CliOptions options, string temporaryPath)
     {
         bool resized = false;
+
+        // An .ico holds the same picture at several sizes. Reading it as a single image takes
+        // whichever the file happens to list first, which is normally the 16px one — a surprising
+        // answer to "convert this icon to a png".
+        if (_targetIsIcon)
+        {
+            return WriteIcon(item, options, temporaryPath);
+        }
+
+        if (IsMultiSizeIcon(item.SourcePath, options))
+        {
+            using MagickImageCollection sizes = new(item.SourcePath);
+            using IMagickImage<byte> chosen = SelectIconFrame(sizes, options);
+
+            resized = Prepare(chosen, options);
+            chosen.Write(temporaryPath, _target);
+            return resized;
+        }
 
         if (_targetKeepsFrames)
         {
@@ -126,7 +151,107 @@ internal sealed class MagickConverter : IImageConverter
         return resized;
     }
 
-    private bool Prepare(IMagickImage<byte> image, CliOptions options)
+    /// <summary>
+    /// Builds a proper icon: the same picture at every conventional size the source can supply,
+    /// which is what an .ico is for. Sizes larger than the source are skipped rather than
+    /// upscaled, and -iconsize narrows it to a single size.
+    /// </summary>
+    private bool WriteIcon(WorkItem item, CliOptions options, string temporaryPath)
+    {
+        using IMagickImage<byte> source = ReadForIcon(item, options);
+
+        // Prepare without the dimension cap: each entry is sized individually below.
+        Prepare(source, options, applyDimensionCap: false);
+
+        uint longest = Math.Max(source.Width, source.Height);
+        int[] wanted = options.IconSize is { } only
+            ? [only]
+            : [.. CliOptions.IconSizes.Where(size => size <= longest)];
+
+        // A source smaller than the smallest conventional size still deserves an icon.
+        if (wanted.Length == 0)
+        {
+            wanted = [CliOptions.IconSizes[0]];
+        }
+
+        using MagickImageCollection entries = [];
+
+        foreach (int size in wanted)
+        {
+            IMagickImage<byte> entry = source.Clone();
+            entry.Resize(new MagickGeometry((uint)size, (uint)size) { Greater = true });
+            entry.Format = _target;
+            entries.Add(entry);
+        }
+
+        entries.Write(temporaryPath, _target);
+
+        return longest > wanted[^1];
+    }
+
+    /// <summary>The image an icon should be built from, unwrapping a multi-size icon source.</summary>
+    private IMagickImage<byte> ReadForIcon(WorkItem item, CliOptions options)
+    {
+        if (IsMultiSizeIcon(item.SourcePath, options))
+        {
+            using MagickImageCollection sizes = new(item.SourcePath);
+            return SelectIconFrame(sizes, options);
+        }
+
+        return new MagickImage(item.SourcePath);
+    }
+
+    /// <summary>
+    /// True when the source is an icon carrying more than one size and we are picking one out of
+    /// it. A multi-size icon converted to another icon keeps all its sizes unless -iconsize asks
+    /// for a specific one.
+    /// </summary>
+    private bool IsMultiSizeIcon(string path, CliOptions options)
+    {
+        if (_targetKeepsFrames && options.IconSize is null && !_targetIsIcon)
+        {
+            return false;
+        }
+
+        try
+        {
+            if (ImageFormats.Canonical(new MagickImageInfo(path).Format) is not (MagickFormat.Ico or MagickFormat.Cur))
+            {
+                return false;
+            }
+        }
+        catch (MagickException)
+        {
+            return false;
+        }
+
+        using MagickImageCollection sizes = new(path);
+        return sizes.Count > 1;
+    }
+
+    /// <summary>
+    /// Picks the requested size, or the largest when none was asked for. A clone is returned so
+    /// the collection can be disposed without taking the chosen image with it.
+    /// </summary>
+    private static IMagickImage<byte> SelectIconFrame(MagickImageCollection sizes, CliOptions options)
+    {
+        if (options.IconSize is not { } wanted)
+        {
+            return sizes.OrderByDescending(f => (long)f.Width * f.Height).First().Clone();
+        }
+
+        IMagickImage<byte>? match = sizes.FirstOrDefault(f => Math.Max(f.Width, f.Height) == wanted);
+
+        if (match is null)
+        {
+            string available = string.Join(", ", sizes.Select(f => $"{f.Width}x{f.Height}").Distinct());
+            throw new IconSizeNotFoundException($"no {wanted}px image inside; it holds {available}");
+        }
+
+        return match.Clone();
+    }
+
+    private bool Prepare(IMagickImage<byte> image, CliOptions options, bool applyDimensionCap = true)
     {
         // Bake rotation into the pixels and clear the tag, so the result is upright regardless of
         // whether the target format or the viewer understands EXIF orientation.
@@ -138,7 +263,7 @@ internal sealed class MagickConverter : IImageConverter
         // measured the way it will actually be stored.
         bool resized = false;
 
-        if (_targetMaxDimension is { } cap && (image.Width > cap || image.Height > cap))
+        if (applyDimensionCap && _targetMaxDimension is { } cap && (image.Width > cap || image.Height > cap))
         {
             image.Resize(new MagickGeometry((uint)cap, (uint)cap) { Greater = true });
             resized = true;
@@ -202,6 +327,16 @@ internal sealed class MagickConverter : IImageConverter
     }
 
     /// <summary>
+    /// Whether the operating system refused the write rather than the image being at fault.
+    /// ImageMagick wraps a refused open in its own exception type and leaves the underlying
+    /// reason in the text, so the message is the only reliable signal.
+    /// </summary>
+    internal static bool IsPermissionRefusal(Exception exception) =>
+        exception is UnauthorizedAccessException ||
+        exception.Message.Contains("permission denied", StringComparison.OrdinalIgnoreCase) ||
+        exception.Message.Contains("access is denied", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// ImageMagick messages carry the offending path and the C source location that raised them —
     /// "image type not supported `C:\photos\x.heic' @ error/heic.c/ReadHEICImage/1036". The report
     /// already shows the path, so trim back to the part that tells the user something.
@@ -244,3 +379,6 @@ internal sealed class MagickConverter : IImageConverter
         }
     }
 }
+
+/// <summary>Raised when -iconsize names a size the icon does not contain.</summary>
+internal sealed class IconSizeNotFoundException(string message) : Exception(message);

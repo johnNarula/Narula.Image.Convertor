@@ -101,6 +101,23 @@ internal sealed class TestWorkspace : IDisposable
         return path;
     }
 
+    /// <summary>An .ico carrying the same picture at several sizes, as real icons do.</summary>
+    public string WriteMultiSizeIcon(string relativePath, params int[] sizes)
+    {
+        string path = InSource(relativePath);
+        using MagickImageCollection collection = [];
+
+        foreach (int size in sizes)
+        {
+            MagickImage frame = new(MagickColors.CornflowerBlue, (uint)size, (uint)size);
+            frame.Format = MagickFormat.Ico;
+            collection.Add(frame);
+        }
+
+        collection.Write(path, MagickFormat.Ico);
+        return path;
+    }
+
     /// <summary>A file with an image extension and nothing but noise inside.</summary>
     public string WriteCorrupt(string relativePath)
     {

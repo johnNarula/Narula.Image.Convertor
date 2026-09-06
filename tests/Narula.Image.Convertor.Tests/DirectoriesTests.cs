@@ -91,5 +91,11 @@ public class DirectoriesTests
 string output = captured.ToString();
         Assert.Contains("could not create destination folder", output);
         Assert.Contains("Controlled folder access", output);
+
+        // The allow list is per executable, which is the part people trip over after a rename.
+        Assert.Contains("per executable", output);
+
+        // Explained once, however many files were involved.
+        Assert.Equal(1, output.Split("Controlled folder access").Length - 1);
     }
 }

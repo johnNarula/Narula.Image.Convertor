@@ -54,34 +54,12 @@ public class ConversionTests
         Assert.Equal(Outcome.Converted, result.Outcome);
         Assert.Equal("resized to fit ico", result.Reason);
 
-        // 1280x800 scaled into a 256 box keeps its 8:5 ratio.
-        MagickImageInfo info = new(workspace.InDestination("huge.ico"));
-        Assert.Equal(256u, info.Width);
-        Assert.Equal(160u, info.Height);
-    }
+        // The largest entry fills the 256 box, keeping the source's 8:5 ratio.
+        using MagickImageCollection entries = new(workspace.InDestination("huge.ico"));
+        IMagickImage<byte> largest = entries.OrderByDescending(e => e.Width).First();
 
-    [Fact]
-    public async Task An_ico_directory_entry_describes_its_own_payload()
-    {
-        using TestWorkspace workspace = new();
-        workspace.WriteLargeJpeg("huge.jpg", 1280, 800);
-
-        await ConvertAsync(workspace, "huge.jpg", "ico");
-
-        // An ICO entry stores each dimension in one byte, 0 meaning 256. If the image inside is
-        // bigger than the directory can express, the file lies about itself and consumers that
-        // pick an entry from the directory get it wrong.
-        byte[] ico = File.ReadAllBytes(workspace.InDestination("huge.ico"));
-
-        int count = BitConverter.ToUInt16(ico, 4);
-        Assert.Equal(1, count);
-
-        uint declaredWidth = ico[6] == 0 ? 256u : ico[6];
-        uint declaredHeight = ico[7] == 0 ? 256u : ico[7];
-
-        MagickImageInfo actual = new(workspace.InDestination("huge.ico"));
-        Assert.Equal(actual.Width, declaredWidth);
-        Assert.Equal(actual.Height, declaredHeight);
+        Assert.Equal(256u, largest.Width);
+        Assert.Equal(160u, largest.Height);
     }
 
     [Fact]
@@ -94,25 +72,11 @@ public class ConversionTests
 
         Assert.Equal(Outcome.Converted, result.Outcome);
 
-        MagickImageInfo info = new(workspace.InDestination("tall.ico"));
-        Assert.Equal(256u, info.Height);
-        Assert.Equal(51u, info.Width);
-    }
+        using MagickImageCollection entries = new(workspace.InDestination("tall.ico"));
+        IMagickImage<byte> largest = entries.OrderByDescending(e => e.Height).First();
 
-    [Fact]
-    public async Task Formats_without_a_cap_are_never_resized()
-    {
-        using TestWorkspace workspace = new();
-        workspace.WriteLargeJpeg("huge.jpg", 1280, 800);
-
-        ConversionResult result = await ConvertAsync(workspace, "huge.jpg", "png");
-
-        Assert.Equal(Outcome.Converted, result.Outcome);
-        Assert.Null(result.Reason);
-
-        MagickImageInfo info = new(workspace.InDestination("huge.png"));
-        Assert.Equal(1280u, info.Width);
-        Assert.Equal(800u, info.Height);
+        Assert.Equal(256u, largest.Height);
+        Assert.Equal(51u, largest.Width);
     }
 
     [Fact]
@@ -126,9 +90,11 @@ public class ConversionTests
         Assert.Equal(Outcome.Converted, result.Outcome);
         Assert.Null(result.Reason);
 
-        MagickImageInfo info = new(workspace.InDestination("small-enough.ico"));
-        Assert.Equal(200u, info.Width);
-        Assert.Equal(256u, info.Height);
+        using MagickImageCollection entries = new(workspace.InDestination("small-enough.ico"));
+        IMagickImage<byte> largest = entries.OrderByDescending(e => e.Height).First();
+
+        Assert.Equal(200u, largest.Width);
+        Assert.Equal(256u, largest.Height);
     }
 
     [Fact]

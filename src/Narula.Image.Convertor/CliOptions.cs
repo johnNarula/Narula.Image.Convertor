@@ -36,12 +36,21 @@ internal sealed record CliOptions
     /// <summary>Null when -q was not given, so formats keep whatever quality they were written at.</summary>
     public int? Quality { get; init; } = 85;
 
+    /// <summary>
+    /// Which image to take out of a multi-size icon. Null means the largest, which is almost
+    /// always what someone converting an icon to a picture wants.
+    /// </summary>
+    public int? IconSize { get; init; }
+
     public bool Overwrite { get; init; } = true;
     public bool PreserveTransparency { get; init; } = true;
     public MagickColor Background { get; init; } = new(MagickColors.White);
     public bool PreserveMetadata { get; init; } = true;
     public int Parallelism { get; init; } = Environment.ProcessorCount;
     public bool StopOnError { get; init; }
+
+    /// <summary>The sizes an .ico conventionally holds, and the only values -iconsize accepts.</summary>
+    public static readonly int[] IconSizes = [16, 32, 48, 64, 128, 256];
 
     public static ParseOutcome Parse(string[] args)
     {
@@ -57,6 +66,7 @@ internal sealed record CliOptions
         bool overwrite = true, preserveTransparency = true, preserveMetadata = true;
         MagickColor background = new(MagickColors.White);
         MagickFormat targetFormat = MagickFormat.Unknown;
+        int? iconSize = null;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -80,7 +90,7 @@ internal sealed record CliOptions
 
                 case "-s":
                     if (!TryTakeValue(args, ref i, flag, out string s, out string? err)) return ParseOutcome.Invalid(err);
-                    source = s;
+                    source = s?.TrimEnd('\\', '/' );
                     break;
 
                 case "-d":
@@ -109,6 +119,16 @@ internal sealed record CliOptions
                         return ParseOutcome.Invalid($"-q must be a whole number from 1 to 100, got '{q}'");
                     }
                     quality = parsedQuality;
+                    break;
+
+                case "-iconsize":
+                    if (!TryTakeValue(args, ref i, flag, out string icon, out err)) return ParseOutcome.Invalid(err);
+                    if (!int.TryParse(icon, out int parsedIconSize) || !IconSizes.Contains(parsedIconSize))
+                    {
+                        return ParseOutcome.Invalid(
+                            $"-iconsize must be one of {string.Join(", ", IconSizes)}, got '{icon}'");
+                    }
+                    iconSize = parsedIconSize;
                     break;
 
                 case "-p":
@@ -177,6 +197,7 @@ internal sealed record CliOptions
             TargetFormat = targetFormat,
             Recursive = recursive,
             Quality = quality,
+            IconSize = iconSize,
             Overwrite = overwrite,
             PreserveTransparency = preserveTransparency,
             Background = background,
@@ -273,6 +294,8 @@ internal sealed record CliOptions
                            jpg png webp avif tiff bmp gif ico jxl pdf
                          Nearly 200 are writable — run -formats for the full list
           -q <1-100>     Encoder quality (default 85; formats that record one)
+          -iconsize <n>  Which image to take from a multi-size .ico:
+                           16 32 48 64 128 256. Default is the largest present
           -o <bool>      Overwrite existing destination files (default true)
           -trans <bool>  Preserve transparency (default true)
           -bg <colour>   Matte used when flattening, #RRGGBB or a name (default #FFFFFF)

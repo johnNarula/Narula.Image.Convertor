@@ -390,6 +390,28 @@ Everything else — the three forms of `-s`, the default destination, mirrored t
 collision resolution, overwrite policy, pass-through, uprighting, atomic writes, exit
 codes, the progress line and the report — is unchanged and still covered by its tests.
 
+## Icons carry several sizes
+
+An `.ico` is a container of the same picture at several resolutions, which makes both
+directions ambiguous.
+
+**Reading.** `new MagickImage(icon.ico)` returns whichever entry the file lists first, and
+files are conventionally ordered smallest first — so converting a seven-size icon to PNG
+silently produced a 16x16 image. The largest entry is now selected instead, and
+`-iconsize` picks a named one. A requested size the file lacks fails with a list of the
+sizes it does hold, rather than falling back to something the user did not ask for.
+
+**Writing.** A single-entry icon is a poor icon. Converting to ICO now emits every
+conventional size the source can supply (16, 32, 48, 64, 128, 256), skipping any larger
+than the source rather than upscaling into blur. `-iconsize` narrows it to one.
+
+Entries preserve the source's aspect ratio rather than being cropped or padded to squares:
+cropping discards image the user did not ask to lose, and padding invents border colour.
+A 3:4 photo therefore yields 144x256, 72x128 and so on, which ICO permits.
+
+`-iconsize` is deliberately restricted to the six conventional sizes. Arbitrary values
+would make it a general resize flag, which remains a non-goal.
+
 ## Packaging
 
 | Layout | Files | Size | Needs |

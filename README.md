@@ -31,7 +31,8 @@ nImgConvertor -s .\photos -r -d .\converted -t jpg
 | `-r` | Recurse into subfolders; the destination mirrors the tree |
 | `-d <path>` | Destination folder. Defaults to a `Converted to <type>` folder inside the source folder |
 | `-t <type>` | Target — `jpg` `png` `webp` `avif` `tiff` `bmp` `gif` `ico` `jxl` `pdf` and ~190 more (`-formats`) |
-| `-q <1-100>` | Encoder quality, default 85 (JPEG and WebP only) |
+| `-q <1-100>` | Encoder quality, default 85 (formats that record one) |
+| `-iconsize <n>` | Which size to take from a multi-size `.ico`, and which to write: 16, 32, 48, 64, 128, 256 |
 | `-o <bool>` | Overwrite existing destination files, default `true` |
 | `-trans <bool>` | Preserve transparency, default `true` |
 | `-bg <colour>` | Matte used when flattening — `#RRGGBB` or a name like `white`, default `#FFFFFF` |
@@ -128,6 +129,23 @@ nImgConvertor -s .\photos -r -d .\converted -t jpg -o false
   larger than 256x256, so a photo is scaled to fit that box with its aspect ratio intact,
   and the report says how many were resized. Nothing else is ever resized.
 - **A blocked destination is explained, not just reported.** See below.
+
+## Icons
+
+An `.ico` holds the same picture at several sizes, so it needs saying which one is meant.
+
+**Reading one**, the largest is used. Reading an icon as a plain image otherwise takes
+whichever size the file lists first — usually 16x16, which is a surprising answer to
+"convert this icon to a png". `-iconsize 32` picks a specific one, and asking for a size the
+file does not contain fails with a list of what it does hold.
+
+**Writing one**, every conventional size the source can supply is produced in a single
+`.ico` — 16, 32, 48, 64, 128 and 256. Sizes larger than the source are skipped rather than
+upscaled, and `-iconsize 48` narrows the output to that one size.
+
+Entries keep the source's aspect ratio, so a 3:4 photo becomes 144x256, 72x128 and so on
+rather than being cropped or padded to squares. Icons are capped at 256 because an ICO
+directory entry stores each dimension in a single byte.
 
 ## If it cannot create the destination folder
 
