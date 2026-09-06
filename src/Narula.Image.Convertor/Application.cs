@@ -60,7 +60,23 @@ internal static class Application
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            Console.Error.WriteLine($"nImgConvertor: could not create destination folder {options.DestinationPath}: {exception.Message}");
+            Console.Error.WriteLine($"nImgConvertor: could not create destination folder {options.DestinationPath}");
+            Console.Error.WriteLine($"  {exception.Message}");
+
+            if (OperatingSystem.IsWindows())
+            {
+                // Defender's Controlled Folder Access protects Documents, Pictures, Desktop and
+                // their OneDrive equivalents, and refuses writes from apps not on its allow list.
+                // It reports the refusal as "could not find file <the folder>", which reads like a
+                // bug here rather than a policy decision somewhere else.
+                Console.Error.WriteLine();
+                Console.Error.WriteLine("  If that folder is under Documents, Pictures, Desktop or OneDrive, this is most");
+                Console.Error.WriteLine("  likely Windows Defender Controlled Folder Access. To allow this tool:");
+                Console.Error.WriteLine("    Windows Security > Virus & threat protection > Ransomware protection >");
+                Console.Error.WriteLine("    Manage ransomware protection > Allow an app through Controlled folder access");
+                Console.Error.WriteLine($"    Add: {Environment.ProcessPath}");
+            }
+
             return 2;
         }
 

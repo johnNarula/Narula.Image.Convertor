@@ -120,9 +120,25 @@ nImgConvertor -s .\photos -r -d .\converted -t jpg -o false
 - **Writes are atomic** — each output is encoded to a temp file and renamed, so Ctrl+C
   never leaves a half-written image behind.
 - **A destination inside the source folder is not re-scanned as input.**
-- **Folder creation retries past cloud-sync hiccups.** The first write into a OneDrive or
-  Dropbox folder that has not been hydrated yet can fail with a spurious "could not find
-  file" naming the folder itself; creation retries rather than giving up.
+- **A blocked destination is explained, not just reported.** See below.
+
+## If it cannot create the destination folder
+
+Windows Defender **Controlled Folder Access** protects Documents, Pictures, Desktop and
+their OneDrive equivalents, and refuses writes from applications that are not on its allow
+list. Windows reports that refusal as `Could not find file '<the folder>'`, which looks
+like a bug in the tool but is not — the same executable writes happily to an unprotected
+folder.
+
+To allow it:
+
+> Windows Security → Virus & threat protection → Ransomware protection →
+> Manage ransomware protection → Allow an app through Controlled folder access →
+> Add an allowed app → Browse all apps → pick `nImgConvertor.exe`
+
+Add the exact executable you run. A rebuild to a new location needs adding again.
+
+The tool prints these steps, and the path to add, whenever destination creation fails.
 
 ## Limitations
 

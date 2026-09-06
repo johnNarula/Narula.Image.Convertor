@@ -11,6 +11,16 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <PublishReadyToRun>true</PublishReadyToRun>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Product>nImgConvertor</Product>
+    <Description>Batch image format conversion from the command line.</Description>
+    <Authors>John Narula</Authors>
+    <Company>Narula</Company>
+    <Copyright>Copyright © John Narula</Copyright>
+    <Version>1.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

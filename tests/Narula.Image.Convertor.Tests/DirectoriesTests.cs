@@ -38,6 +38,22 @@ public class DirectoriesTests
     }
 
     [Fact]
+    public void Recreates_a_folder_immediately_after_it_was_deleted()
+    {
+        using TestWorkspace workspace = new();
+        string folder = Path.Combine(workspace.Root, "churn");
+
+        for (int i = 0; i < 20; i++)
+        {
+            Directories.EnsureExists(folder);
+            File.WriteAllText(Path.Combine(folder, "occupant.txt"), "content");
+            Directory.Delete(folder, recursive: true);
+            Directories.EnsureExists(folder);
+            Assert.True(Directory.Exists(folder));
+        }
+    }
+
+    [Fact]
     public void Still_throws_when_a_file_occupies_the_name()
     {
         using TestWorkspace workspace = new();
@@ -72,6 +88,8 @@ public class DirectoriesTests
         }
 
         Assert.Equal(2, exitCode);
-        Assert.Contains("could not create destination folder", captured.ToString());
+string output = captured.ToString();
+        Assert.Contains("could not create destination folder", output);
+        Assert.Contains("Controlled folder access", output);
     }
 }
