@@ -17,6 +17,26 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public void Choosing_a_source_shows_the_default_destination_immediately()
+    {
+        using TestWorkspace workspace = new();
+        MainViewModel model = Model();
+
+        // No button pressed: selecting a source is enough.
+        model.Source = workspace.Source;
+
+        Assert.Equal(Path.Combine(workspace.Source, "Converted to jpg"), model.DestinationHint);
+        Assert.Contains("Default, beside the source.", model.DestinationNote);
+
+        // And it follows the source when that changes.
+        string other = Path.Combine(workspace.Root, "other");
+        Directory.CreateDirectory(other);
+        model.Source = other;
+
+        Assert.Equal(Path.Combine(other, "Converted to jpg"), model.DestinationHint);
+    }
+
+    [Fact]
     public void The_destination_hint_shows_where_output_will_land()
     {
         MainViewModel model = Model();
@@ -247,6 +267,139 @@ public class MainViewModelTests
         Assert.Equal(100, model.Progress);
         Assert.True(File.Exists(workspace.InDestination("one.jpg")));
         Assert.True(File.Exists(workspace.InDestination("two.jpg")));
+    }
+
+    [Fact]
+    public void Use_default_shows_the_full_path_it_will_create()
+    {
+        using TestWorkspace workspace = new();
+        MainViewModel model = Model();
+        model.Source = workspace.Source;
+
+        // Pick an explicit destination, then go back to the default.
+        model.Destination = @"C:\elsewhere";
+        Assert.Equal(@"C:\elsewhere", model.DestinationHint);
+
+        model.Destination = string.Empty;
+
+        string expected = Path.Combine(workspace.Source, "Converted to jpg");
+        Assert.Equal(expected, model.DestinationHint);
+        Assert.False(Directory.Exists(expected), "the point is that it shows a path that does not exist yet");
+
+        // And says which destination is in force, plus that it need not exist yet.
+        Assert.Contains("Default, beside the source.", model.DestinationNote);
+        Assert.Contains("Created when you convert.", model.DestinationNote);
+
+        Directory.CreateDirectory(expected);
+        model.Destination = expected;
+        Assert.Contains("Chosen folder.", model.DestinationNote);
+        Assert.Contains("It already exists.", model.DestinationNote);
+    }
+
+    [Fact]
+    public void The_destination_card_says_something_before_a_source_is_chosen()
+    {
+        MainViewModel model = Model();
+
+        Assert.Contains("Choose a source", model.DestinationHint);
+        Assert.Equal(string.Empty, model.DestinationNote);
+    }
+
+    [Fact]
+    public void Cancel_is_only_available_while_a_run_is_in_flight()
+    {
+        TaskCompletionSource gate = new();
+
+        MainViewModel model = new(async (args, progress, token) =>
+        {
+            await gate.Task;
+            return RunOutcome.Stopped(RunStatus.NothingToDo, "done");
+        });
+
+        model.Source = @"C:\photos";
+
+        Assert.False(model.CanCancel);
+        Assert.True(model.IsIdle);
+
+        Task running = model.ConvertAsync();
+
+        Assert.True(model.CanCancel);
+        Assert.False(model.IsIdle);
+        Assert.False(model.CanConvert);
+
+        gate.SetResult();
+        running.Wait(TimeSpan.FromSeconds(5));
+
+        Assert.False(model.CanCancel);
+        Assert.True(model.IsIdle);
+        Assert.True(model.CanConvert);
+    }
+
+    [Fact]
+    public async Task Cancelling_stops_the_run_and_keeps_what_was_done()
+    {
+        MainViewModel model = new(async (args, progress, token) =>
+        {
+            // Stand in for a long conversion that watches the token.
+            await Task.Delay(Timeout.Infinite, token).ConfigureAwait(false);
+            return RunOutcome.Stopped(RunStatus.Completed);
+        });
+
+        model.Source = @"C:\photos";
+        Task running = model.ConvertAsync();
+
+        while (!model.Running)
+        {
+            await Task.Delay(10);
+        }
+
+        model.Cancel();
+        await running;
+
+        Assert.Equal("Cancelled.", model.Status);
+        Assert.False(model.Running);
+        Assert.True(model.CanConvert);
+    }
+
+    [Fact]
+    public async Task A_cancelled_run_still_reports_what_it_managed()
+    {
+        WorkItem done = new(@"C:\one.png", @"C:\out\one.jpg", "one.png");
+
+        MainViewModel model = new(async (args, progress, token) =>
+        {
+            // Mirrors the engine: cancellation stops it handing out work, and it returns what
+            // finished rather than throwing. The window has to notice the cancellation itself.
+            try
+            {
+                await Task.Delay(Timeout.Infinite, token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+
+            return new RunOutcome(
+                RunStatus.Completed,
+                null,
+                CliOptions.Parse(["-s", "in", "-d", "out", "-t", "jpg"]).Options,
+                [ConversionResult.Converted(done, 100, 50)],
+                5,
+                TimeSpan.FromSeconds(1));
+        });
+
+        model.Source = @"C:\photos";
+        Task running = model.ConvertAsync();
+
+        while (!model.Running)
+        {
+            await Task.Delay(10);
+        }
+
+        model.Cancel();
+        await running;
+
+        Assert.Contains("Cancelled", model.Status);
+        Assert.Contains("1 converted", model.Summary);
     }
 
     private static MainViewModel Model(RunOutcome? outcome = null) =>

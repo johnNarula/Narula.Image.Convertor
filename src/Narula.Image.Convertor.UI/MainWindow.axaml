@@ -47,10 +47,23 @@
       <Setter Property="Background" Value="#D9D8EC" />
       <Setter Property="Foreground" Value="#8E8DA8" />
     </Style>
+    <Style Selector="Button.chevron">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="6,0" />
+      <Setter Property="Margin" Value="0" />
+      <Setter Property="VerticalAlignment" Value="Stretch" />
+      <Setter Property="Content" Value="&#xE70D;" />
+      <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
+      <Setter Property="FontSize" Value="10" />
+      <Setter Property="Foreground" Value="#5B5B78" />
+    </Style>
   </Window.Styles>
 
   <ScrollViewer Padding="18">
     <StackPanel>
+
+      <StackPanel x:Name="SetupPanel" IsEnabled="{Binding IsIdle}">
 
       <!-- Source. Dropping a folder is the point: it is what a browser UI could never do. -->
       <Border Classes="card" Background="#EFF3FF" BorderBrush="#D7E0FB">
@@ -69,9 +82,16 @@
           </StackPanel>
 
           <TextBlock Classes="label" Text="ONLY THESE FILES" Margin="0,2,0,6" />
-          <ComboBox x:Name="FilterBox" Width="260"
-                    ItemsSource="{Binding SourceFilters}"
-                    SelectedItem="{Binding SourceFilter}" />
+          <AutoCompleteBox x:Name="FilterBox" Width="260"
+                           ItemsSource="{Binding SourceFilters}"
+                           Text="{Binding SourceFilter}"
+                           FilterMode="Contains"
+                           MinimumPrefixLength="0"
+                           IsTextCompletionEnabled="True">
+            <AutoCompleteBox.InnerRightContent>
+              <Button x:Name="FilterDropDown" Classes="chevron" />
+            </AutoCompleteBox.InnerRightContent>
+          </AutoCompleteBox>
         </StackPanel>
       </Border>
 
@@ -80,13 +100,17 @@
         <StackPanel>
           <TextBlock Classes="label" Text="CONVERT TO" />
           <StackPanel Orientation="Horizontal" Spacing="14">
-            <AutoCompleteBox x:Name="TargetBox" Width="170"
+            <AutoCompleteBox x:Name="TargetBox" Width="185"
                              ItemsSource="{Binding Targets}"
                              Text="{Binding Target}"
                              FilterMode="Contains"
                              MinimumPrefixLength="0"
                              IsTextCompletionEnabled="True"
-                             Watermark="type to filter" />
+                             Watermark="type to filter">
+              <AutoCompleteBox.InnerRightContent>
+                <Button x:Name="TargetDropDown" Classes="chevron" />
+              </AutoCompleteBox.InnerRightContent>
+            </AutoCompleteBox>
             <StackPanel Orientation="Horizontal" Spacing="8"
                         IsVisible="{Binding QualityApplies}" VerticalAlignment="Center">
               <TextBlock Text="Quality" VerticalAlignment="Center" />
@@ -111,7 +135,8 @@
       <Border Classes="card" Background="#EDF9F2" BorderBrush="#CEEBDC">
         <StackPanel>
           <TextBlock Classes="label" Text="DESTINATION" />
-          <TextBlock Text="{Binding DestinationHint}" TextWrapping="Wrap" Margin="0,0,0,10" />
+          <TextBlock Text="{Binding DestinationHint}" TextWrapping="Wrap" FontWeight="SemiBold" />
+          <TextBlock Classes="hint" Text="{Binding DestinationNote}" Margin="0,3,0,10" />
           <StackPanel Orientation="Horizontal" Spacing="8">
             <Button x:Name="BrowseDestination" Content="Choose folder..." />
             <Button x:Name="ClearDestination" Content="Use default" />
@@ -134,9 +159,17 @@
         </StackPanel>
       </Border>
 
-      <Button x:Name="ConvertButton" Classes="primary" Content="Convert"
-              HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-              Padding="0,11" IsEnabled="{Binding CanConvert}" />
+      </StackPanel>
+
+      <Grid ColumnDefinitions="*,10,150">
+        <Button Grid.Column="0" x:Name="ConvertButton" Classes="primary" Content="Convert"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                Padding="0,11" IsEnabled="{Binding CanConvert}" />
+        <Button Grid.Column="2" x:Name="CancelButton" Content="Cancel"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                Padding="0,11" CornerRadius="8" FontSize="15"
+                IsEnabled="{Binding CanCancel}" />
+      </Grid>
 
       <ProgressBar Value="{Binding Progress}" Maximum="100" Height="6"
                    Margin="0,14,0,8" Foreground="#7C3AED" />

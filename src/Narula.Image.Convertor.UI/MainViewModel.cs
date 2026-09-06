@@ -14,6 +14,8 @@ internal sealed class MainViewModel : INotifyPropertyChanged
 {
     private readonly Func<string[], IProgressSink, CancellationToken, Task<RunOutcome>> _run;
 
+    private CancellationTokenSource? _cancellation;
+
     private string _source = string.Empty;
     private string _destination = string.Empty;
     private string _target = "jpg";
@@ -82,6 +84,7 @@ internal sealed class MainViewModel : INotifyPropertyChanged
             {
                 Notify(nameof(CanConvert));
                 Notify(nameof(DestinationHint));
+                Notify(nameof(DestinationNote));
                 Notify(nameof(IconSizeApplies));
             }
         }
@@ -96,6 +99,7 @@ internal sealed class MainViewModel : INotifyPropertyChanged
             if (Set(ref _destination, value))
             {
                 Notify(nameof(DestinationHint));
+                Notify(nameof(DestinationNote));
             }
         }
     }
@@ -110,6 +114,7 @@ internal sealed class MainViewModel : INotifyPropertyChanged
                 Notify(nameof(CanConvert));
                 Notify(nameof(TargetDescription));
                 Notify(nameof(DestinationHint));
+                Notify(nameof(DestinationNote));
                 Notify(nameof(IconSizeApplies));
                 Notify(nameof(QualityApplies));
             }
@@ -134,6 +139,8 @@ internal sealed class MainViewModel : INotifyPropertyChanged
             if (Set(ref _running, value))
             {
                 Notify(nameof(CanConvert));
+                Notify(nameof(CanCancel));
+                Notify(nameof(IsIdle));
             }
         }
     }
@@ -143,6 +150,12 @@ internal sealed class MainViewModel : INotifyPropertyChanged
     public string Summary { get => _summary; private set => Set(ref _summary, value); }
 
     public bool CanConvert => !Running && !string.IsNullOrWhiteSpace(Source) && TargetIsWritable;
+
+    /// <summary>Only while there is something to stop.</summary>
+    public bool CanCancel => Running;
+
+    /// <summary>Everything that sets up a run is locked while one is in flight.</summary>
+    public bool IsIdle => !Running;
 
     /// <summary>Icon sizes only mean something when an icon is on one end of the conversion.</summary>
     public bool IconSizeApplies =>
@@ -169,11 +182,34 @@ internal sealed class MainViewModel : INotifyPropertyChanged
 
             if (string.IsNullOrWhiteSpace(Source))
             {
-                return string.Empty;
+                return "Choose a source, and this shows exactly where output will go.";
             }
 
             string root = Directory.Exists(Source) ? Source : Path.GetDirectoryName(Source) ?? Source;
             return Path.Combine(root, string.Format(Defaults.Current.DestinationFolderFormat, Target));
+        }
+    }
+
+    /// <summary>
+    /// Says out loud that the default folder does not have to exist yet, since the path shown for
+    /// it looks identical to one that does.
+    /// </summary>
+    public string DestinationNote
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(Source))
+            {
+                return string.Empty;
+            }
+
+            bool usingDefault = string.IsNullOrWhiteSpace(Destination);
+            string target = usingDefault ? DestinationHint : Destination;
+
+            string which = usingDefault ? "Default, beside the source." : "Chosen folder.";
+            string state = Directory.Exists(target) ? "It already exists." : "Created when you convert.";
+
+            return $"{which}  {state}";
         }
     }
 
@@ -207,6 +243,9 @@ internal sealed class MainViewModel : INotifyPropertyChanged
             return;
         }
 
+        using CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _cancellation = cancellation;
+
         Running = true;
         Progress = 0;
         Summary = string.Empty;
@@ -215,8 +254,11 @@ internal sealed class MainViewModel : INotifyPropertyChanged
 
         try
         {
-            RunOutcome outcome = await _run(BuildRequest().ToArguments(), new ViewModelProgress(this), cancellationToken);
-            Present(outcome);
+            RunOutcome outcome = await _run(BuildRequest().ToArguments(), new ViewModelProgress(this), cancellation.Token);
+
+            // The engine stops handing out work on cancellation and returns what finished, so a
+            // cancelled run still has a real result worth showing rather than a bare message.
+            Present(outcome, cancellation.IsCancellationRequested);
         }
         catch (OperationCanceledException)
         {
@@ -229,11 +271,22 @@ internal sealed class MainViewModel : INotifyPropertyChanged
         }
         finally
         {
+            _cancellation = null;
             Running = false;
         }
     }
 
-    private void Present(RunOutcome outcome)
+    /// <summary>Stops the run. What has already been written stays written.</summary>
+    public void Cancel()
+    {
+        if (Running)
+        {
+            Status = "Stopping...";
+            _cancellation?.Cancel();
+        }
+    }
+
+    private void Present(RunOutcome outcome, bool cancelled = false)
     {
         if (outcome.Status != RunStatus.Completed)
         {
@@ -274,8 +327,15 @@ internal sealed class MainViewModel : INotifyPropertyChanged
             : string.Empty;
 
         Summary = $"{string.Join(", ", parts)} in {outcome.Elapsed.TotalSeconds:0.0}s{size}";
-        Status = failed.Count > 0 ? "Finished with failures." : "Finished.";
-        Progress = 100;
+
+        Status = cancelled
+            ? "Cancelled. Files already converted have been kept."
+            : failed.Count > 0 ? "Finished with failures." : "Finished.";
+
+        if (!cancelled)
+        {
+            Progress = 100;
+        }
 
         foreach (ConversionResult failure in failed)
         {

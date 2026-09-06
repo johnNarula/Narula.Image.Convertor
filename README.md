@@ -32,6 +32,13 @@ Drop a folder or an image onto it, choose a format, press Convert. That drop zon
 point of the app: it is what removes the need to type quoted paths, and it is the one thing
 a browser-based UI could not do — browsers withhold file paths by design.
 
+Both pickers filter as you type and keep a drop-down button, so they behave like the lists they
+resemble. While a conversion runs, everything that sets it up is disabled and Cancel takes over;
+cancelling keeps whatever had already been converted.
+
+The destination shows its full path as soon as a source is chosen, before any button is pressed,
+and says whether that folder already exists or will be created.
+
 The format picker takes every one of the 197 writable formats and filters as you type, showing
 ImageMagick's own description of whatever is selected. The source has an "only these files"
 filter, defaulting to all supported image types, which narrows a folder scan to one extension.

@@ -31,12 +31,23 @@ public partial class MainWindow : Window
         ClearDestination.Click += (_, _) => _model.Destination = string.Empty;
         ClearIconSize.Click += (_, _) => _model.IconSize = null;
         ConvertButton.Click += ConvertAsync;
+        CancelButton.Click += (_, _) => _model.Cancel();
+
+        // The chevrons make a filtering box behave like the drop-down it resembles.
+        TargetDropDown.Click += (_, _) => Toggle(TargetBox);
+        FilterDropDown.Click += (_, _) => Toggle(FilterBox);
 
         // Dropping a folder is the reason this window exists: it is the one thing a browser
         // cannot do, and the thing that makes typing quoted paths unnecessary.
         DragDrop.SetAllowDrop(DropZone, true);
         DropZone.AddHandler(DragDrop.DragOverEvent, OnDragOver);
         DropZone.AddHandler(DragDrop.DropEvent, OnDrop);
+    }
+
+    private static void Toggle(AutoCompleteBox box)
+    {
+        box.IsDropDownOpen = !box.IsDropDownOpen;
+        box.Focus();
     }
 
     private static void OnDragOver(object? sender, DragEventArgs e) =>
