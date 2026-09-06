@@ -62,7 +62,7 @@ internal sealed class ImageSharpConverter : IImageConverter
             string? directory = Path.GetDirectoryName(item.DestinationPath);
             if (!string.IsNullOrEmpty(directory))
             {
-                Directory.CreateDirectory(directory);
+                Directories.EnsureExists(directory);
             }
 
             if (await CanPassThroughAsync(item, options, cancellationToken).ConfigureAwait(false))

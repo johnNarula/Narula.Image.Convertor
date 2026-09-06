@@ -120,6 +120,9 @@ nImgConvertor -s .\photos -r -d .\converted -t jpg -o false
 - **Writes are atomic** — each output is encoded to a temp file and renamed, so Ctrl+C
   never leaves a half-written image behind.
 - **A destination inside the source folder is not re-scanned as input.**
+- **Folder creation retries past cloud-sync hiccups.** The first write into a OneDrive or
+  Dropbox folder that has not been hydrated yet can fail with a spurious "could not find
+  file" naming the folder itself; creation retries rather than giving up.
 
 ## Limitations
 

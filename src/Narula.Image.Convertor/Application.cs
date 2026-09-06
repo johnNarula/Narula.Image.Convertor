@@ -47,11 +47,20 @@ internal static class Application
         try
         {
             scan = FileScanner.Scan(options);
-            Directory.CreateDirectory(options.DestinationPath);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            Console.Error.WriteLine($"nImgConvertor: {exception.Message}");
+            Console.Error.WriteLine($"nImgConvertor: could not read {options.SourceRoot}: {exception.Message}");
+            return 2;
+        }
+
+        try
+        {
+            Directories.EnsureExists(options.DestinationPath);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine($"nImgConvertor: could not create destination folder {options.DestinationPath}: {exception.Message}");
             return 2;
         }
 

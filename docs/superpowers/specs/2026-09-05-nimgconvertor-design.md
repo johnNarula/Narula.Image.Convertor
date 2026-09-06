@@ -121,6 +121,17 @@ sideways.
 only unless the target is GIF, WebP, or TIFF. PNG is treated as single-frame on purpose:
 converting an animated GIF to PNG should produce a still image, not an APNG.
 
+**Cloud-synced folders.** OneDrive and Dropbox folders are reparse points serviced by a
+filter driver, and the first write into one whose placeholder is not yet hydrated can fail
+spuriously — OneDrive reports ERROR_FILE_NOT_FOUND, which .NET surfaces as a
+`FileNotFoundException` naming the folder being created. Observed in practice: the first
+two runs writing a new `Converted to png` folder into a OneDrive photo folder failed that
+way, and every run after anything else had touched that folder succeeded. All directory
+creation therefore goes through `Directories.EnsureExists`, which retries up to four times
+with a short backoff and treats "it exists now" as success. A real permission failure still
+throws on the final attempt and is reported as
+`could not create destination folder <path>: <reason>`.
+
 **Atomic writes.** Each conversion encodes to a sibling `.nimgtmp` file and renames it
 into place, so an interrupted run never leaves a half-written image where a valid one is
 expected. The temp file is removed on any failure.
@@ -148,6 +159,7 @@ One project, one NuGet dependency (`SixLabors.ImageSharp` 3.1.12).
 | `ImageSharpConverter.cs` | The only implementation today |
 | `ConversionResult.cs` | `Outcome` enum + reason + bytes in/out |
 | `ConversionEngine.cs` | `Parallel.ForEachAsync`, cancellation, result collection |
+| `Directories.cs` | Directory creation that retries past cloud-sync hiccups |
 | `ProgressReporter.cs` | In-place counter with redirected-output fallback |
 | `Report.cs` | Final summary rendering |
 
@@ -251,7 +263,7 @@ CPU-bound inside the encoder, which is the correct place for the time to go.
 
 ## Testing
 
-An xUnit project alongside the main one, 68 tests. Fixture images are generated
+An xUnit project alongside the main one, 73 tests. Fixture images are generated
 programmatically at test time — no binary assets in the repository.
 
 Coverage:
@@ -259,6 +271,7 @@ Coverage:
 - Argument parsing: full command line, defaults, aliases, and every rejection path
 - The three `-s` forms, and the default `-d` for each of them
 - Glob selection, glob with `-r`, and a glob matching nothing
+- Directory creation: nested, idempotent, contended by 64 workers, and blocked by a file
 - Extension filtering, recursion, mirrored paths, self-output exclusion, sort order
 - Destination collision resolution
 - Overwrite policy in both states
