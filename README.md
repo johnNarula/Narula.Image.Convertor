@@ -183,18 +183,27 @@ Requires the .NET 10 SDK.
 dotnet test
 ```
 
+Publish as a **single 26 MB file**, for a machine that has the .NET 10 runtime:
+
 ```bash
-dotnet publish src/Narula.Image.Convertor -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/v2
+dotnet publish src/Narula.Image.Convertor -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=none -o publish/v2
 ```
 
-That produces a standalone `nImgConvertor.exe` of about 100 MB that runs on a machine with
-no .NET installed. It is large because ImageMagick's native library is bundled; trimming
-is not safe with it, and ReadyToRun was measured to change startup by a millisecond while
-costing 12 MB, so it is off. For a much smaller build on a machine that already has the
-.NET 10 runtime, drop `--self-contained true -p:PublishSingleFile=true`.
+Or **fully standalone at 97 MB**, for a machine with no .NET at all:
 
-The first run extracts the native libraries to a temp folder, so it is slower than later
-ones.
+```bash
+dotnet publish src/Narula.Image.Convertor -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=none -o publish/v2
+```
+
+Both produce exactly one `nImgConvertor.exe`. Without `-p:PublishSingleFile=true` you get
+around 190 loose files instead. `-p:DebugType=none` drops the `.pdb`.
+
+Measured notes: trimming is unsafe with Magick.NET's native library, and ReadyToRun changed
+startup by one millisecond while costing 12 MB, so both are off. The first run extracts the
+native library to a temp folder and is slower than later ones.
+
+The `bin/` and `obj/` folders hold hundreds of intermediate build files. They are gitignored
+and nothing runs from them — delete them freely.
 
 ## Licensing note
 
@@ -210,7 +219,7 @@ Moving to Magick.NET removed that constraint entirely.
 | What | Where | Notes |
 |---|---|---|
 | **v1.0.0 — ImageSharp** | tag `v1.0.0`, branch `v1.0-imagesharp` | 23 MB exe, 9 formats, no HEIC/AVIF/RAW |
-| v2.0.0 — Magick.NET | branch `v2-magick` | 100 MB exe, 261 read / 197 write, incl. HEIC/AVIF/RAW/PSD |
+| v2.0.0 — Magick.NET | tag `v2.0.0`, `master` | 26 MB exe (97 MB standalone), 261 read / 197 write, incl. HEIC/AVIF/RAW/PSD |
 
 Measured on 204 mixed files (154 MB) converting to JPEG: v1 took 8.5 s, v2 took 13.2 s.
 v2 is about 1.5x slower and 4x larger; it reads formats v1 cannot open at all.

@@ -390,6 +390,38 @@ Everything else — the three forms of `-s`, the default destination, mirrored t
 collision resolution, overwrite policy, pass-through, uprighting, atomic writes, exit
 codes, the progress line and the report — is unchanged and still covered by its tests.
 
+## Packaging
+
+| Layout | Files | Size | Needs |
+|---|---|---|---|
+| Framework-dependent, single file | 1 | 26 MB | .NET 10 runtime |
+| Self-contained, single file | 1 | 97 MB | nothing |
+| Self-contained, not single file | ~190 | 108 MB | nothing |
+
+The framework-dependent single file is the documented default: the runtime is already
+present wherever the tool is built, and 26 MB against 97 MB is worth more than portability
+that is not being used. `-p:DebugType=none` removes the `.pdb`, leaving exactly one file.
+
+Trimming is off because Magick.NET's native library is not trim-safe. ReadyToRun is off
+because it was measured at 84 ms startup against 83 ms without, for 12 MB — single-file
+native extraction dominates startup, so it bought nothing.
+
+## The icon
+
+`tools/GenerateIcon.cs` draws the icon from normalised coordinates with 8x8 supersampling
+and assembles the `.ico` container by hand. It carries five designs; the shipped one is
+`split` — a single photo divided by a diagonal seam, white on one side and amber on the
+other, saying "the same picture, two formats" without needing an arrow. It was chosen
+because the 16px rendering is the one that matters, and a split block stays sharp and
+distinctive there while arrows and stacked cards dissolve.
+
+Sizes below 32px drop the interior detail. Entries are DIBs except 256, which is PNG —
+the convention, and a quarter the size of a raw DIB at that resolution. Each directory
+entry is verified to describe its own payload.
+
+The tool uses Magick.NET, the same library as the application, so the repository does not
+carry a second imaging dependency just to draw an icon.
+
 ## Verification
 
 92 tests, plus these end-to-end checks on real files:
