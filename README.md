@@ -361,8 +361,13 @@ dotnet publish src/Narula.Image.Convertor.Cli -c Release -r win-x64 -o publish/v
 dotnet publish src/Narula.Image.Convertor.UI -c Release -r win-x64 -o publish/v2
 ```
 
-Into the same folder that gives two files — `img2img.exe` at 26 MB and `img2imgUI.exe` at
-55 MB — and lets the command line find the window. Both need the .NET 10 runtime, which is
+```bash
+dotnet publish src/Narula.Image.Convertor.Mcp -c Release -r win-x64 -o publish/v2
+```
+
+Into the same folder that gives three files — `img2img.exe` at 26 MB, `img2imgUI.exe` at 55 MB
+and `img2imgMcp.exe` at 30 MB — and lets the command line find the window beside it. The folder
+is still called `v2` from when versions were numbered that way; the version inside it is not. Both need the .NET 10 runtime, which is
 why they are this small; add `-p:SelfContained=true` for a machine without it, at roughly
 four times the size.
 
