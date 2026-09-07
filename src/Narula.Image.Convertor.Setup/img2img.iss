@@ -59,6 +59,9 @@ ArchitecturesInstallIn64BitMode=x64compatible
 SetupIconFile=..\Narula.Image.Convertor\icon.ico
 WizardImageFile=wizard-large.bmp
 WizardSmallImageFile=wizard-small.bmp
+; Shown during setup, and installed alongside the programs. Two of the bundled licences
+; require their text to travel with any distribution, and an installer is a distribution.
+LicenseFile=..\..\LICENSE
 WizardStyle=modern
 Compression=lzma2/max
 SolidCompression=yes
@@ -81,6 +84,12 @@ Source: "{#StageDir}\{#McpExe}"; DestDir: "{app}"; Flags: ignoreversion
 ; A starting point only. Your own copy in %AppData%\9thAct\img2img wins over this one, and
 ; onlyifdoesntexist means reinstalling never overwrites an edited file.
 Source: "settings.default.json"; DestDir: "{app}"; DestName: "settings.json"; Flags: onlyifdoesntexist
+
+; Licences travel with the binaries: the executables are single-file, so the notices for
+; everything inside them cannot sit beside them unless they are put there.
+Source: "..\..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
+Source: "..\..\THIRD-PARTY-NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\licenses\*"; DestDir: "{app}\licenses"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#WindowExe}"

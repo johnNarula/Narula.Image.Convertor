@@ -399,14 +399,34 @@ native library to a temp folder and is slower than later ones.
 The `bin/` and `obj/` folders hold hundreds of intermediate build files. They are gitignored
 and nothing runs from them — delete them freely.
 
-## Licensing note
+## Licence
 
-v2 depends on **Magick.NET-Q8-AnyCPU** under the Apache-2.0 ImageMagick licence. No
-licence key, no revenue threshold.
+MIT, plus additional terms — the full text is in [LICENSE](LICENSE), and setup shows it before
+installing. In short:
 
-v1 used ImageSharp 3.1.12 under the Six Labors Split License and was pinned there because
-ImageSharp 4.x adds a build-time licence-key check that fails Release builds without a key.
-Moving to Magick.NET removed that constraint entirely.
+- **Do what you like with the software.** Use it, change it, sell it, ship it in your own
+  product. Keep the copyright notice.
+- **Your files are your responsibility.** It overwrites files in a destination you choose.
+  Keep backups and check the output. Neither 9th Act, LLC nor John Narula is responsible for
+  any file it touches, or for anything decided on the basis of a converted one.
+- **You need the rights to what you convert.** If you run it over proprietary, licensed,
+  confidential or copyrighted material, that is between you and whoever owns it.
+- **You indemnify the author.** Claims arising from your use, your breach of the terms, or the
+  files you process are yours to defend and pay for.
+- **No warranty and no liability**, to the fullest extent the law allows.
+
+Those additional terms mean this is not stock MIT, so GitHub will label the repository
+"Other" rather than "MIT". That is the deliberate trade for the indemnity.
+
+Bundled components keep their own licences, and two of them require their text to travel with
+any copy you distribute — see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) and the
+`licenses/` folder. The installer puts both into the install folder for that reason, and
+About in the window says where they landed. Nothing bundled is copyleft.
+
+**Magick.NET-Q8-AnyCPU** carries ImageMagick under the Apache-2.0 derived ImageMagick licence:
+no licence key, no revenue threshold. v1 used ImageSharp 3.1.12 under the Six Labors Split
+License and was pinned there because ImageSharp 4.x adds a build-time licence-key check that
+fails Release builds without a key. Moving to Magick.NET removed that constraint entirely.
 
 ## Versions
 

@@ -1,0 +1,78 @@
+MIT License
+
+Copyright (c) 2026 9th Act, LLC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+ADDITIONAL TERMS
+
+The terms above are the MIT License, unmodified. The terms below are added by
+9th Act, LLC and apply in addition to it. Where they conflict, these terms
+govern.
+
+1. YOUR FILES ARE YOUR RESPONSIBILITY.
+
+   This Software reads, converts and writes image files, and can overwrite or
+   replace files in a destination you choose. You are solely responsible for
+   the files you point it at, for keeping backups of them, and for verifying
+   its output before relying on it. Neither 9th Act, LLC nor John Narula
+   accepts any responsibility for loss, corruption, overwriting, or
+   degradation of any file, or for any decision made on the basis of a
+   converted file.
+
+2. YOU MUST HAVE THE RIGHT TO THE FILES YOU PROCESS.
+
+   You are solely responsible for ensuring you hold the rights, licences and
+   permissions necessary to copy, convert, store and distribute any file you
+   process with this Software, including proprietary, licensed, confidential
+   or copyrighted material. Neither 9th Act, LLC nor John Narula endorses,
+   authorises, reviews or has any knowledge of the files you process, and
+   neither accepts any responsibility or liability arising from your use of
+   this Software on any file you were not entitled to use in that way.
+
+3. INDEMNIFICATION.
+
+   You agree to indemnify, defend and hold harmless 9th Act, LLC, John Narula,
+   and their officers, employees, agents and contributors, from and against
+   any and all claims, demands, actions, losses, liabilities, damages, costs
+   and expenses (including reasonable legal fees) arising out of or relating
+   to: (a) your use of, or inability to use, the Software; (b) your breach of
+   these terms; (c) your infringement or alleged infringement of any
+   intellectual property, privacy, confidentiality or other right of any third
+   party through your use of the Software; or (d) any file you process with
+   the Software.
+
+4. NO LIABILITY, TO THE FULLEST EXTENT PERMITTED.
+
+   To the fullest extent permitted by applicable law, the total aggregate
+   liability of 9th Act, LLC and John Narula arising out of or relating to the
+   Software shall not exceed zero dollars (USD $0.00), and neither shall be
+   liable for any indirect, incidental, special, consequential, exemplary or
+   punitive damages, or for any loss of data, profits, revenue, goodwill or
+   business, however caused and on any theory of liability.
+
+5. SEPARABILITY.
+
+   If any part of these Additional Terms is held unenforceable, it shall be
+   severed and the remainder, including the MIT License above, shall continue
+   in full force.
+
+This Software bundles third-party components under their own licences. See
+THIRD-PARTY-NOTICES.md, which you must keep with any copy you distribute.

@@ -13,6 +13,7 @@ public partial class AboutWindow : Window
         VersionText.Text = AboutDetails.Version;
         SummaryText.Text = AboutDetails.Summary;
         CopyrightText.Text = AboutDetails.Copyright;
+        LicenceText.Text = AboutDetails.Licence;
         Rows.ItemsSource = AboutDetails.Rows();
 
         AuthorLink.Content = AboutDetails.Author;

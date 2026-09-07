@@ -1,5 +1,3 @@
-using System.Reflection;
-
 using Narula.Image.Convertor;
 
 using AvaloniaApplication = Avalonia.Application;
@@ -75,6 +73,19 @@ internal static class AboutDetails
 
     public static string McpSnippet() => McpConfig.Snippet();
 
+    /// <summary>Where the programs and their licence files actually are.</summary>
+    internal static string InstallFolder =>
+        Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
+
+    /// <summary>
+    /// Licensing, from the window, because the executables are single-file: the notices for
+    /// everything inside them are not visible unless something says where they went.
+    /// </summary>
+    public static string Licence =>
+        "MIT licensed, with additional terms covering your files and indemnification. " +
+        "Imaging by Magick.NET and ImageMagick (Apache-2.0). Window by Avalonia (MIT). " +
+        $"Full text in LICENSE.txt and THIRD-PARTY-NOTICES.md, beside the program in {InstallFolder}.";
+
     public static string Author => "John Narula";
 
     public static string AuthorLink => "https://www.linkedin.com/in/johnNarula";
@@ -89,6 +100,8 @@ internal static class AboutDetails
             string.Empty,
             .. Rows().Select(r => $"{r.Label}: {r.Value}"),
             $"Author: {Author} ({AuthorLink})",
+            string.Empty,
+            Licence,
         ]);
 
     private static string AssemblyVersion(Type type)

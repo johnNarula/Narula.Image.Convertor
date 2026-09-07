@@ -79,8 +79,7 @@
         </StackPanel>
 
         <TextBlock x:Name="CopyrightText" FontSize="11.5" Foreground="#77778F" />
-        <TextBlock FontSize="11" Foreground="#8B8BA3" TextWrapping="Wrap"
-                   Text="Imaging by Magick.NET and ImageMagick (Apache-2.0). Window by Avalonia (MIT)." />
+        <TextBlock x:Name="LicenceText" FontSize="11" Foreground="#8B8BA3" TextWrapping="Wrap" />
       </StackPanel>
     </ScrollViewer>
 

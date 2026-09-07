@@ -66,4 +66,20 @@ public class AboutTests
         Assert.Equal(Defaults.InstalledSettingsPath, searched[1]);
         Assert.Contains("img2img", Defaults.UserSettingsPath);
     }
+
+    [Fact]
+    public void The_about_box_says_where_the_licences_went()
+    {
+        // The executables are single-file, so nothing beside them reveals what is inside unless
+        // the window says so.
+        string licence = AboutDetails.Licence;
+
+        Assert.Contains("MIT", licence);
+        Assert.Contains("LICENSE.txt", licence);
+        Assert.Contains("THIRD-PARTY-NOTICES.md", licence);
+        Assert.Contains("Apache-2.0", licence);
+        Assert.Contains(AboutDetails.InstallFolder, licence);
+
+        Assert.Contains(licence, AboutDetails.AsText());
+    }
 }
